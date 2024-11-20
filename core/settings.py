@@ -71,6 +71,8 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
+    'channels',
+    "corsheaders",
     # utilities
     'drf_yasg',
     # app
@@ -113,7 +115,7 @@ ROOT_URLCONF = 'core.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -232,4 +234,15 @@ SWAGGER_SETTINGS = {
     },
     'USE_SESSION_AUTH': False,  # Tắt xác thực bằng Session
     'JSON_EDITOR': True,        # Bật JSON editor
+}
+# CHAT CHANNELS
+ASGI_APPLICATION = "core.asgi.application"
+
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            "hosts": ['edis://default:lwxjcWWc7yyDRK6SWLMHXXF00D4ZuRbz@redis-19890.c92.us-east-1-3.ec2.redns.redis-cloud.com:19890'],
+        },
+    },
 }

@@ -21,6 +21,8 @@ python-dotenv = "^1.0.1"
 drf-yasg = "^1.21.8"
 celery = "^5.4.0"
 pyjwt = "^2.10.0"
+channels = "^4.2.0"
+channels-redis = "^4.2.1"
 
 
 [build-system]
