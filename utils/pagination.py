@@ -12,7 +12,7 @@ class Pagination(PageNumberPagination):
         """
         return Response({
             'success': True,
-            'message': 'Pagination successful',
+            'message': 'successful',
             'data': data,
             'pagination': {
                 'count': self.page.paginator.count,  

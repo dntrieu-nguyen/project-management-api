@@ -212,3 +212,13 @@ CELERY_TASK_SERIALIZER = 'json'
 JWT_SECRET = os.getenv('JWT_SECRET')
 JWT_ACCESS_TOKEN_EXP = os.getenv('JWT_ACCESS_TOKEN_EXP')
 JWT_REFRESH_TOKEN_EXP = os.getenv('JWT_REFRESH_TOKEN_EXP')
+
+# SEND MAIL
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_HOST_USER = 'nguyen.dang@rikai.technology'
+EMAIL_HOST_PASSWORD ='fcxn cizj wzqd ypmz'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_TIMEOUT = 300
+DEFAULT_FROM_EMAIL = 'no-reply@gmail.com'

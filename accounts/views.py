@@ -10,8 +10,9 @@ from utils.pagination import Pagination
 from utils.redis import get_cache, set_cache
 from utils.response import failure_response, success_response
 from drf_yasg.utils import swagger_auto_schema
-from django.contrib.auth import authenticate
 import logging
+
+from utils.send_mail import send_email
 
 log = logging.getLogger(__name__)
 
@@ -38,6 +39,15 @@ class AccountsView(APIView):
 
         if not user.check_password(login_serializers.validated_data['password']):  
             return failure_response(message='Invalid password', status_code=status.HTTP_401_UNAUTHORIZED)
+        
+        subject = "Welcome to Django App"
+        txt_ = "Thank you for signing up."
+        from_email = "nguyen.dang@rikai.technology"
+        recipient_list = "nguyen.dang@rikai.technology"
+        html_ = "<h1>Welcome to Django App</h1><p>Thank you for signing up.</p>"
+
+        result = send_email(subject, txt_, from_email, recipient_list, html_)
+        print(f"Email sent successfully: {result}")
 
 
         # Create tokens
@@ -66,3 +76,4 @@ class AccountsView(APIView):
             paginator=paginator
            
         )
+    
