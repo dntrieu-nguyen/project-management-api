@@ -3,32 +3,31 @@ import uuid
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 
+
 # Create your models here.
+class SoftDeletedManager(models.Manager):
+    def get_queryset(self):
+        return super().get_queryset().filter(is_deleted=False)
+
 class SoftDeleteMixin(models.Model):
     is_deleted = models.BooleanField(default=False)
     deleted_at = models.DateTimeField(blank=True, null=True)
 
-    objects = models.Manager()  
-    all_objects = models.Manager()  
+    objects = SoftDeletedManager()  
+    all_objects = models.Manager() 
 
     class Meta:
         abstract = True
 
     def delete(self, using=None, keep_parents=False, soft=True):
-        """
-        Soft delete by default; use soft=False for hard delete.
-        """
         if soft:
             self.is_deleted = True
-            self.deleted_at = datetime.datetime.now()
+            self.deleted_at = now()
             self.save()
         else:
             super().delete(using=using, keep_parents=keep_parents)
 
     def restore(self):
-        """
-        Restore a soft-deleted object.
-        """
         self.is_deleted = False
         self.deleted_at = None
         self.save()
@@ -41,6 +40,7 @@ class User(AbstractUser, SoftDeleteMixin):
     forget_password_expires_at = models.DateTimeField(blank=True, null=True)
     reset_password_token = models.CharField(max_length=255, blank=True, null=True)
     reset_password_expires_at = models.DateTimeField(blank=True, null=True)
+    online_status = models.BooleanField(default=False)
 
     class Meta:
         db_table = 'user'
@@ -77,7 +77,7 @@ class Task(SoftDeleteMixin):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)  
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
-    status = models.CharField(max_length=50, default='pending')  # pending, completed, in-progress
+    status = models.CharField(max_length=50, choices=STATUS_CHOICES,default='pending')  # pending, completed, in-progress
     priority = models.IntegerField(default=1)  # 1 (low), 2 (medium), 3 (high)
     project = models.ForeignKey(Project, on_delete=models.SET_NULL, blank=True, null=True, related_name="tasks")
     assignees = models.ManyToManyField(User, related_name="tasks")
@@ -106,11 +106,23 @@ class Comment(SoftDeleteMixin):
     def __str__(self):
         return f"Comment by {self.author.username} on {self.task.title}"
 
+class Room(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=255, unique=True)
+    members = models.ManyToManyField(User, related_name="chat_rooms")  # Quan hệ nhiều-nhiều với User
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'room'
+
+    def __str__(self):
+        return f"Room: {self.name}"
 
 class Message(SoftDeleteMixin):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)  
-    sender = models.ForeignKey(User, on_delete=models.SET_NULL, blank=True, null=True, related_name="sent_messages")
-    receiver = models.ForeignKey(User, on_delete=models.SET_NULL, blank=True, null=True, related_name="received_messages")
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    sender = models.ForeignKey(User, on_delete=models.SET_NULL, blank=True, null=True, related_name="messages_sent")
+    receiver = models.ForeignKey(User, on_delete=models.SET_NULL, blank=True, null=True, related_name="messages_received")
+    room = models.ForeignKey(Room, on_delete=models.SET_NULL, blank=True, null=True, related_name="messages")
     content = models.TextField()
     is_read = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -119,23 +131,26 @@ class Message(SoftDeleteMixin):
         db_table = 'message'
 
     def __str__(self):
-        return f"Message from {self.sender.username} to {self.receiver.username}"
+        sender_name = self.sender.username if self.sender else "Unknown"
+        return f"Message from {sender_name} in {self.room.name}"
 
 
 class Notification(SoftDeleteMixin):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)  
     user = models.ForeignKey(User, on_delete=models.SET_NULL, blank=True, null=True, related_name="notifications")
-    task = models.ForeignKey(Task, on_delete=models.SET_NULL, blank=True, null=True, related_name="notifications")
-    message = models.TextField()
+    task = models.ForeignKey(Task, on_delete=models.SET_NULL, blank=True, null=True, related_name="notifications", help_text="Liên kết tới nhiệm vụ (nếu có)")
+    message = models.TextField(help_text="Nội dung thông báo")
     is_read = models.BooleanField(default=False)
-    scheduled_time = models.DateTimeField(blank=True, null=True)  # For scheduled notifications
+    scheduled_time = models.DateTimeField(blank=True, null=True, help_text="Thời gian dự kiến gửi thông báo")
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         db_table = 'notification'
 
     def __str__(self):
-        return f"Notification for {self.user.username}"
+        user_name = self.user.username if self.user else "Unknown"
+        return f"Notification for {user_name}"
+
 
 
 class RefreshToken(SoftDeleteMixin):
@@ -150,3 +165,5 @@ class RefreshToken(SoftDeleteMixin):
 
     def __str__(self):
         return f"RefreshToken for {self.user.username}"
+    
+

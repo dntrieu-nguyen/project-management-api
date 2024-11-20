@@ -5,11 +5,13 @@ from rest_framework import status
 from accounts.serializers import LoginSerializers
 from app.models import User
 from user.serializers import UserSerializers
-from utils.jwt import decode_token, generate_access_token, generate_refresh_token
+from utils.jwt import generate_access_token, generate_refresh_token
 from utils.pagination import Pagination
-from utils.redis import get_cache, set_cache
+from utils.redis import set_cache
 from utils.response import failure_response, success_response
 from drf_yasg.utils import swagger_auto_schema
+from django.template.loader import render_to_string
+
 import logging
 
 from utils.send_mail import send_email
@@ -44,11 +46,12 @@ class AccountsView(APIView):
         txt_ = "Thank you for signing up."
         from_email = "nguyen.dang@rikai.technology"
         recipient_list = "nguyen.dang@rikai.technology"
-        html_ = "<h1>Welcome to Django App</h1><p>Thank you for signing up.</p>"
+        html_ = render_to_string('forgot_password.html', {
+            'name':user.email
+        })
 
         result = send_email(subject, txt_, from_email, recipient_list, html_)
         print(f"Email sent successfully: {result}")
-
 
         # Create tokens
         access_token = generate_access_token(user.id, user.is_staff)
