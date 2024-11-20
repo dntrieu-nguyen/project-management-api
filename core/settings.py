@@ -84,13 +84,10 @@ INSTALLED_APPS = [
 REST_FRAMEWORK = {
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.LimitOffsetPagination',
     'PAGE_SIZE': 20,
-    # 'DEFAULT_AUTHENTICATION_CLASSES': [
-    #     'rest_framework.authentication.BasicAuthentication',
-    #     'rest_framework.authentication.SessionAuthentication',
-    # ],
-    # 'DEFAULT_PERMISSION_CLASSES': (
-    # 'rest_framework.permissions.IsAuthenticated',
-    # )
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework.authentication.TokenAuthentication',     # Nếu dùng Token
+    ),
+
 }
 
 MIDDLEWARE = [
@@ -109,7 +106,7 @@ MIDDLEWARE = [
 # CORS config
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ORIGIN_WHITELIST = [
-    
+
     # other origins...
 ]
 
@@ -143,8 +140,8 @@ DATABASES = {
         'NAME': os.getenv('DATABASE_NAME'),
         'USER': os.getenv('DATABASE_USER'),
         'PASSWORD': os.getenv('DATABASE_PASSWORD'),
-        'HOST':os.getenv('DATABASE_HOST'),
-        'PORT':os.getenv('DATABASE_PORT'),
+        'HOST': os.getenv('DATABASE_HOST'),
+        'PORT': os.getenv('DATABASE_PORT'),
     }
 }
 
@@ -167,7 +164,7 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-# Authentication model 
+# Authentication model
 AUTH_USER_MODEL = 'app.User'
 
 
@@ -219,12 +216,25 @@ JWT_REFRESH_TOKEN_EXP = os.getenv('JWT_REFRESH_TOKEN_EXP')
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_HOST_USER = 'nguyen.dang@rikai.technology'
-EMAIL_HOST_PASSWORD ='fcxn cizj wzqd ypmz'
+EMAIL_HOST_PASSWORD = 'fcxn cizj wzqd ypmz'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_TIMEOUT = 300
 DEFAULT_FROM_EMAIL = 'no-reply@gmail.com'
 
+
+SWAGGER_SETTINGS = {
+    'SECURITY_DEFINITIONS': {
+        'Bearer': {
+            'type': 'apiKey',
+            'name': 'Authorization',
+            'in': 'header',
+            'description': "JWT Authorization header using the Bearer scheme. Example: 'Bearer <token>'",
+        },
+    },
+    'USE_SESSION_AUTH': False,  # Tắt xác thực bằng Session
+    'JSON_EDITOR': True,        # Bật JSON editor
+}
 # CHAT CHANNELS
 ASGI_APPLICATION = "core.asgi.application"
 
