@@ -22,6 +22,8 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('auth/', include('accounts.urls')),
     path('api/auth/', include('auths.urls')),
+    path('api/chat/', include('chat.urls')),
+
     # swagger
     # Include DRF-Swagger URLs
     re_path(r'^swagger(?P<format>\.json|\.yaml)$',
