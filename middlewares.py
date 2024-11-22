@@ -33,7 +33,7 @@ def auth_middleware(view_func):
             request.user = {
                 "id": decoded.get("id"),
                 "role": decoded.get("role"),
-            }
+            }   
 
             return view_func(request, *args, **kwargs)
         except jwt.ExpiredSignatureError:

@@ -22,7 +22,7 @@ class SoftDeleteMixin(models.Model):
     def delete(self, using=None, keep_parents=False, soft=True):
         if soft:
             self.is_deleted = True
-            self.deleted_at = now()
+            self.deleted_at = datetime.datetime.now()
             self.save()
         else:
             super().delete(using=using, keep_parents=keep_parents)
@@ -41,14 +41,21 @@ class User(AbstractUser, SoftDeleteMixin):
     reset_password_token = models.CharField(max_length=255, blank=True, null=True)
     reset_password_expires_at = models.DateTimeField(blank=True, null=True)
     online_status = models.BooleanField(default=False)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = 'user'
 
 
 class Project(SoftDeleteMixin):
+    STATUS_CHOICES = [
+            ('pending', 'Pending'),
+            ('in-progress', 'In Progress'),
+            ('completed', 'Completed')
+        ]
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)  
     name = models.CharField(max_length=255)
+    status = models.CharField(max_length=50, choices=STATUS_CHOICES,default='pending')  # pending, completed, in-progress
     description = models.TextField(blank=True, null=True)
     owner = models.ForeignKey(User, on_delete=models.SET_NULL, related_name="owned_projects", blank=True, null=True)
     members = models.ManyToManyField(User, related_name="projects")
@@ -111,6 +118,7 @@ class Room(models.Model):
     name = models.CharField(max_length=255, unique=True)
     members = models.ManyToManyField(User, related_name="chat_rooms")  # Quan hệ nhiều-nhiều với User
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = 'room'
@@ -126,6 +134,7 @@ class Message(SoftDeleteMixin):
     content = models.TextField()
     is_read = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = 'message'
@@ -143,6 +152,7 @@ class Notification(SoftDeleteMixin):
     is_read = models.BooleanField(default=False)
     scheduled_time = models.DateTimeField(blank=True, null=True, help_text="Thời gian dự kiến gửi thông báo")
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = 'notification'
@@ -158,6 +168,7 @@ class RefreshToken(SoftDeleteMixin):
     user = models.OneToOneField(User, on_delete=models.SET_NULL, blank=True, null=True, related_name="refresh_token")
     token = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
     expires_at = models.DateTimeField()
 
     class Meta:
