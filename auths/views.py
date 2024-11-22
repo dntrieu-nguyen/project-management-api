@@ -9,7 +9,7 @@ from app.models import User
 from user.serializers import UserSerializers
 from auths.serializers import AuthSerializer, UserDataSerializer, RegisterSerializer, UpdateUserSerializer, ChangePasswordSerializer
 from middlewares import auth_middleware
-
+from utils.redis import set_cache
 from utils.response import success_response, failure_response
 
 
@@ -50,6 +50,7 @@ def login(request, *args, **kwargs):
             user_data['id'], user_data['is_staff'])
         refresh_token = generate_refresh_token(user_data['id'])
         profile = UserDataSerializer(user).data
+        set_cache(f'access_token:{access_token}', access_token, 600)
         return success_response(data={'access_token': access_token, 'refresh_token': refresh_token, 'data': profile}, status_code=200)
     except User.DoesNotExist:
         return success_response(data={"message": "Not found user"}, status_code=status.HTTP_404_NOT_FOUND)

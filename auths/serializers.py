@@ -15,9 +15,9 @@ class RegisterSerializer(serializers.Serializer):
 
     def validate_password(self, value):
 
-        if len(value) < 8:
+        if len(value) < 6:
             raise serializers.ValidationError(
-                "Password must be at least 8 characters long.")
+                "Password must be at least 6 characters long.")
 
         if not re.search(r"[A-Z]", value):
             raise serializers.ValidationError(
@@ -30,10 +30,6 @@ class RegisterSerializer(serializers.Serializer):
         if not re.search(r"\d", value):
             raise serializers.ValidationError(
                 "Password must contain at least one digit.")
-
-        if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", value):
-            raise serializers.ValidationError(
-                "Password must contain at least one special character.")
 
         return value
 

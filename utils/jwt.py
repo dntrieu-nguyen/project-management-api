@@ -13,7 +13,6 @@ def generate_access_token(id, role):
         'nbf': current_time,
         'exp': expiration_time,
     }
-    print("Access Token Payload:", payload)  # In payload
     return jwt.encode(payload=payload, key=JWT_SECRET, algorithm="HS256")
 
 
