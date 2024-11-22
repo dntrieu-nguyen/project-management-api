@@ -3,7 +3,6 @@ name = "project-manament-api"
 version = "0.1.0"
 description = "this is api for project management"
 authors = ["dntrieu-nguyen <nguyen.dang@rikai.technology>"]
-readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.10"
@@ -23,7 +22,6 @@ celery = "^5.4.0"
 pyjwt = "^2.10.0"
 channels = "^4.2.0"
 channels-redis = "^4.2.1"
-
 
 [build-system]
 requires = ["poetry-core"]
