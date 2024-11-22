@@ -24,6 +24,7 @@ urlpatterns = [
     path('api/auth/', include('auths.urls')),
     path('api/chat/', include('chat.urls')),
     path('api/project/', include('projects.urls')),
+    path('api/tasks/', include('tasks.urls')),
 
     # swagger
     # Include DRF-Swagger URLs

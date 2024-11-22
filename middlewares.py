@@ -14,12 +14,12 @@ def auth_middleware(view_func):
     def wrapper(request, *args, **kwargs):
         auth_header = request.headers.get('Authorization')
         if not auth_header or not auth_header.startswith("Bearer "):
-            return failure_response(data={'error': 'Missing or invalid Authorization header'}, status=status.HTTP_401_UNAUTHORIZED)
+            return failure_response(message="Missing or invalid Authorization header", status_code=status.HTTP_401_UNAUTHORIZED)
 
         token = auth_header.split(" ")[1]  # Lấy phần sau 'Bearer'
 
         if not token:
-            return failure_response(data={'error': 'Access token missing'}, status=status.HTTP_401_UNAUTHORIZED)
+            return failure_response(message="Access token missing", status_code=status.HTTP_401_UNAUTHORIZED)
         try:
             if get_cache(f'access_token:{token}') == None:
                 return failure_response(message="Invalid token", status_code=status.HTTP_401_UNAUTHORIZED)
@@ -34,7 +34,7 @@ def auth_middleware(view_func):
             request.user = {
                 "id": decoded.get("id"),
                 "role": decoded.get("role"),
-            }   
+            }
 
             return view_func(request, *args, **kwargs)
         except jwt.ExpiredSignatureError:
