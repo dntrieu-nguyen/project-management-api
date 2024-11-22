@@ -33,14 +33,10 @@ def generate_refresh_token(id):
 
 
 def decode_token(token):
-    try:
-        return jwt.decode(
-            token,
-            key=JWT_SECRET,
-            algorithms=["HS256"],
-            options={"verify_exp": True},
-        )
-    except jwt.ExpiredSignatureError:
-        raise Exception("Token has expired")
-    except jwt.InvalidTokenError as e:
-        raise Exception(f"Invalid token: {str(e)}")
+
+    return jwt.decode(
+        token,
+        key=JWT_SECRET,
+        algorithms=["HS256"],
+        options={"verify_exp": True},
+    )

@@ -6,6 +6,7 @@ from utils.jwt import decode_token
 from utils.response import failure_response
 import jwt
 from utils.redis import get_cache
+from core.settings import JWT_SECRET
 
 
 def auth_middleware(view_func):
@@ -25,7 +26,7 @@ def auth_middleware(view_func):
 
             decoded = jwt.decode(
                 token,
-                key='django_app_secret_key',
+                key=JWT_SECRET,
                 algorithms=["HS256"],
                 options={"verify_exp": True},
             )
@@ -37,8 +38,8 @@ def auth_middleware(view_func):
 
             return view_func(request, *args, **kwargs)
         except jwt.ExpiredSignatureError:
-            return failure_response(message="Token expire")
+            return failure_response(message="Token expire", status_code=status.HTTP_401_UNAUTHORIZED)
         except jwt.InvalidTokenError as e:
-            return failure_response(message="Token invalid")
+            return failure_response(message="Token invalid", status_code=status.HTTP_401_UNAUTHORIZED)
 
     return wrapper

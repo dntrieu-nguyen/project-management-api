@@ -18,25 +18,12 @@ class RegisterSerializer(serializers.Serializer):
         if len(value) < 6:
             raise serializers.ValidationError(
                 "Password must be at least 6 characters long.")
-
-        if not re.search(r"[A-Z]", value):
-            raise serializers.ValidationError(
-                "Password must contain at least one uppercase letter.")
-
-        if not re.search(r"[a-z]", value):
-            raise serializers.ValidationError(
-                "Password must contain at least one lowercase letter.")
-
-        if not re.search(r"\d", value):
-            raise serializers.ValidationError(
-                "Password must contain at least one digit.")
-
         return value
 
 
 class UpdateUserSerializer(serializers.Serializer):
-    first_name = serializers.CharField(required=False, min_length=6,)
-    last_name = serializers.CharField(required=False, min_length=6)
+    first_name = serializers.CharField(required=False, min_length=4,)
+    last_name = serializers.CharField(required=False, min_length=4)
     username = serializers.CharField(required=False, min_length=6)
 
 
@@ -45,6 +32,7 @@ class ChangePasswordSerializer(serializers.Serializer):
         write_only=True, required=True, min_length=6)
     new_password = serializers.CharField(
         write_only=True, required=True, min_length=6)
+    refresh_token = serializers.CharField()
 
 
 class AuthSerializer(serializers.Serializer):
@@ -66,3 +54,7 @@ class UserDataSerializer(serializers.ModelSerializer):
         if request and not request.user.is_staff:  # Example condition
             data.pop('date_joined', None)
         return data
+
+
+class RefreshTokenSerializer(serializers.Serializer):
+    refresh_token = serializers.CharField(required=True, min_length=6,)
