@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+   <head>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <title>Chat Application</title>
+   </head>
+   <body>
+      <h1>Chat Application</h1>
+
+      <!-- Login Section -->
+      <div id="login">
+         <h2>Login</h2>
+         <form id="loginForm">
+            <button type="submit">Login</button>
+         </form>
+         <p id="loginError" style="color: red; display: none">
+            Invalid credentials, please try again.
+         </p>
+      </div>
+
+      <!-- Chat Section -->
+      <div id="chat" style="display: none">
+         <h2>Chat Room</h2>
+         <label for="userId">User id:</label>
+         <input
+            type="text"
+            id="userId"
+            placeholder="Enter your user ID"
+         /><br /><br />
+         <label for="roomName">Room Name:</label>
+         <input
+            type="text"
+            id="roomName"
+            placeholder="Enter room name"
+         /><br /><br />
+         <button id="joinRoom">Join Room</button><br /><br />
+
+         <!-- Messages Display -->
+         <div
+            id="messages"
+            style="
+               border: 1px solid #000;
+               padding: 10px;
+               max-height: 300px;
+               overflow-y: auto;
+            "
+         >
+            <h3>Messages:</h3>
+         </div>
+
+         <!-- Message Input -->
+         <form id="messageForm" style="display: none">
+            <input
+               type="text"
+               id="messageContent"
+               placeholder="Type a message..."
+            />
+            <button type="submit">Send</button>
+         </form>
+      </div>
+
+      <script>
+         const loginForm = document.getElementById('loginForm');
+         const joinRoomButton = document.getElementById('joinRoom');
+         const roomNameInput = document.getElementById('roomName');
+         const userIdInput = document.getElementById('userId');
+         const messagesDiv = document.getElementById('messages');
+         const messageForm = document.getElementById('messageForm');
+         const messageContentInput = document.getElementById('messageContent');
+         const loginError = document.getElementById('loginError');
+
+         let chatSocket;
+
+         // Handle Login
+         loginForm.addEventListener('submit', async event => {
+            event.preventDefault();
+
+            const response = await fetch(
+               'http://127.0.0.1:8000/api/auth/login',
+               {
+                  method: 'POST',
+                  headers: {
+                     'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                     email: 'user@example.com',
+                     password: '123456',
+                  }),
+               },
+            );
+
+            const data = await response.json();
+
+            if (response.ok) {
+               localStorage.setItem('access_token', data.data.access_token);
+               document.getElementById('login').style.display = 'none';
+               document.getElementById('chat').style.display = 'block';
+            } else {
+               loginError.style.display = 'block';
+            }
+         });
+
+         // Handle Join Room
+         joinRoomButton.addEventListener('click', () => {
+            const roomName = roomNameInput.value.trim();
+            const userId = userIdInput.value.trim(); // Get user id from input
+            const token = localStorage.getItem('access_token');
+
+            if (!userId) {
+               alert('Please enter your user ID!');
+               return;
+            }
+
+            if (!token) {
+               alert('Please login first!');
+               return;
+            }
+
+            chatSocket = new WebSocket(
+               `ws://127.0.0.1:8000/ws/chat/${roomName}/?sender_id=${userId}`,
+            );
+
+            chatSocket.onopen = function () {
+               messageForm.style.display = 'block';
+               alert('Connected to the chat room!');
+               loadMessages();
+            };
+
+            chatSocket.onmessage = function (e) {
+               const data = JSON.parse(e.data);
+
+               if (data.action === 'send_message') {
+                  const message = data.message;
+                  displayMessage(
+                     message.sender,
+                     message.content,
+                     message.created_at,
+                  );
+               } else if (data.action === 'load_messages') {
+                  const messages = data.messages;
+                  messages.forEach(msg =>
+                     displayMessage(msg.sender, msg.content, msg.created_at),
+                  );
+               }
+            };
+
+            chatSocket.onclose = function () {
+               alert('Disconnected from the chat room.');
+               messageForm.style.display = 'none';
+            };
+         });
+
+         // Handle Send Message
+         messageForm.addEventListener('submit', event => {
+            event.preventDefault();
+            const content = messageContentInput.value.trim();
+            const userId = userIdInput.value.trim();
+
+            if (content && chatSocket) {
+               chatSocket.send(
+                  JSON.stringify({
+                     action: 'send_message',
+                     content,
+                     sender_id: userId, // Use the input user ID
+                  }),
+               );
+               messageContentInput.value = '';
+            }
+         });
+
+         // Load Previous Messages
+         function loadMessages() {
+            if (chatSocket) {
+               chatSocket.send(
+                  JSON.stringify({
+                     action: 'load_messages',
+                     offset: 0,
+                     limit: 20,
+                  }),
+               );
+            }
+         }
+
+         // Display Message
+         function displayMessage(sender, content, createdAt) {
+            const formattedTime = new Date(createdAt).toLocaleTimeString();
+            messagesDiv.innerHTML += `<p><strong>${sender}:</strong> ${content} <em>${formattedTime}</em></p>`;
+         }
+      </script>
+   </body>
+</html>

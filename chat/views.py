@@ -1,3 +1,4 @@
+from django.shortcuts import render
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -39,3 +40,6 @@ class MessageListView(APIView):
         messages = Message.objects.filter(room=room).order_by('created_at')
         serializer = MessageSerializer(messages, many=True)
         return success_response(data=serializer.data)
+
+def test_view(request):
+    return render(request, 'test.html')
