@@ -1,5 +1,7 @@
 from rest_framework import serializers
 import datetime
+from app.models import Task, Project, User
+from rest_framework.serializers import ModelSerializer
 
 
 class GetTasksSerializer(serializers.Serializer):
@@ -9,7 +11,6 @@ class GetTasksSerializer(serializers.Serializer):
         required=False, default=10, min_value=1, help_text="Number of items per page")
     project_id = serializers.CharField(
         min_length=5,
-        max_length=20,
         help_text="Project id"
     )
 
@@ -28,16 +29,25 @@ class CreateTaskSerializer(serializers.Serializer):
     due_date = serializers.DateTimeField(
         required=True,
     )
-    project_id = serializers.CharField(
-        required=True
-    )
+    project_id = serializers.UUIDField(required=True)
     members = serializers.ListField(
-        child=serializers.CharField(),
-        required=True,
+        child=serializers.UUIDField(),  # Đảm bảo mỗi phần tử trong mảng là UUID hợp lệ
+        required=False,
     )
     status = serializers.CharField(
         required=True,
     )
+
+    def validate_status(self, value):
+
+        if (value != 'pending' and value != 'completed'):
+            raise serializers.ValidationError(
+                "Status must be pending or completed")
+        return value
+
+    def validate_members(self, value):
+        unique_members = list(set(value))
+        return unique_members
 
 
 class UpdateTaskSerializer(serializers.Serializer):
@@ -54,13 +64,49 @@ class UpdateTaskSerializer(serializers.Serializer):
     due_date = serializers.DateTimeField(
         required=False,
     )
-    project_id = serializers.CharField(
-        required=False
-    )
+    task_id = serializers.UUIDField(required=True)
+    project_id = serializers.UUIDField(required=True)
     members = serializers.ListField(
-        child=serializers.CharField(),
+        child=serializers.UUIDField(),
         required=False,
     )
     status = serializers.CharField(
         required=False,
     )
+
+    def validate_status(self, value):
+
+        if (value != 'pending' and value != 'completed'):
+            raise serializers.ValidationError(
+                "Status must be pending or completed")
+        return value
+
+    def validate_members(self, value):
+        unique_members = list(set(value))
+        return unique_members
+
+
+class AssigneeSerializer(ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'first_name', 'last_name', 'email',
+                  'is_staff', 'is_active', 'date_joined', 'updated_at']
+        read_only_fields = ['id']
+
+
+class TaskSerializer(ModelSerializer):
+    assignees = AssigneeSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Task
+        fields = ['id', 'title', 'description', 'created_at',
+                  'updated_at', 'is_deleted', 'status', 'priority', 'due_date', 'assignees']
+        read_only_fields = ['id']
+
+
+class ProjectSerializer(ModelSerializer):
+    tasks = TaskSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Project
+        fields = ['id', 'name', 'tasks']
