@@ -12,9 +12,7 @@ from middlewares import auth_middleware
 from utils.redis import set_cache
 from utils.response import success_response, failure_response
 import jwt
-from core.settings import JWT_SECRET
 from datetime import datetime, timedelta, timezone
-from django.core.exceptions import ObjectDoesNotExist
 
 
 @swagger_auto_schema(
@@ -45,6 +43,8 @@ def login(request, *args, **kwargs):
 
     try:
         user = User.objects.get(email=email)
+        if not User:
+            return failure_response(message="Not found user", status_code=status.HTTP_404_NOT_FOUND)
         if user.check_password(password) == False:
             return failure_response(data={"message": "Password is incorrect"}, status_code=status.HTTP_404_NOT_FOUND)
 
@@ -53,19 +53,11 @@ def login(request, *args, **kwargs):
         access_token = generate_access_token(
             user_data['id'], user_data['is_staff'])
         refresh_token = generate_refresh_token(user_data['id'])
-
         expires_at = datetime.now(timezone.utc) + timedelta(days=30)
 
-        is_existed_fresh_token = RefreshToken.objects.filter(user=user).first()
-
-        if not is_existed_fresh_token:
-            new_refresh_token = RefreshToken.objects.create(
-                user=user, expires_at=expires_at, token=refresh_token)
-            new_refresh_token.save()
-        else:
-            is_existed_fresh_token.token = refresh_token
-            is_existed_fresh_token.expires_at = expires_at
-            is_existed_fresh_token.save()
+        new_refresh_token = RefreshToken.objects.create(
+            user=user, expires_at=expires_at, token=refresh_token)
+        new_refresh_token.save()
 
         profile = UserDataSerializer(user).data
         set_cache(f'access_token:{access_token}', access_token, 6000)
