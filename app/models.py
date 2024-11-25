@@ -165,7 +165,7 @@ class Notification(SoftDeleteMixin):
 
 class RefreshToken(SoftDeleteMixin):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)  
-    user = models.OneToOneField(User, on_delete=models.SET_NULL, blank=True, null=True, related_name="refresh_token")
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, blank=True, null=True, related_name="refresh_token")
     token = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
