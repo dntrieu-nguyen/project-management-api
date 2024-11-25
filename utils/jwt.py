@@ -40,3 +40,20 @@ def decode_token(token):
         algorithms=["HS256"],
         options={"verify_exp": True},
     )
+
+
+def generate_forgot_password_token(id, email):
+    current_time = datetime.datetime.now(datetime.timezone.utc)
+    expiration_time = current_time + datetime.timedelta(minutes=3)
+
+    return jwt.encode(
+        payload={
+            'id': str(id),
+            'email': email,
+            'iat': current_time,
+            'nbf': current_time,
+            'exp': expiration_time,
+        },
+        key='Forgot_password_key',
+        algorithm="HS256",
+    )

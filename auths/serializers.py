@@ -58,3 +58,15 @@ class UserDataSerializer(serializers.ModelSerializer):
 
 class RefreshTokenSerializer(serializers.Serializer):
     refresh_token = serializers.CharField(required=True, min_length=6,)
+
+
+class ForgotPasswordSerializer(serializers.Serializer):
+    email = serializers.EmailField(required=True)
+
+
+class ResetPasswordSerializer(serializers.Serializer):
+    email = serializers.EmailField(required=True)
+    secret_key = serializers.CharField(
+        min_length=1, max_length=5, required=True)
+    new_password = serializers.CharField(
+        write_only=True, required=True, min_length=6)
