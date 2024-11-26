@@ -165,5 +165,3 @@ class ChatConsumer(AsyncWebsocketConsumer):
     def get_or_create_room(room_name):
         room, created = Room.objects.get_or_create(name=room_name)
         return room
-
-print(f'chat_userid_uuid')

@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+   <head>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <title>Login and Push Notification Demo</title>
+      <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js"></script>
+      <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-messaging.js"></script>
+      <style>
+         body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: auto;
+            padding: 20px;
+         }
+         h1 {
+            text-align: center;
+         }
+         .login-form {
+            display: flex;
+            flex-direction: column;
+            margin: 20px 0;
+         }
+         .login-form input {
+            padding: 10px;
+            margin-bottom: 10px;
+            font-size: 16px;
+         }
+         .login-form button {
+            padding: 10px;
+            background-color: #4caf50;
+            color: white;
+            border: none;
+            cursor: pointer;
+         }
+         .login-form button:hover {
+            background-color: #45a049;
+         }
+      </style>
+   </head>
+   <body>
+      <h1>Login to Receive Notifications</h1>
+
+      <!-- Login Form -->
+      <div class="login-form">
+         <input
+            type="email"
+            id="email"
+            placeholder="Enter your email"
+            required
+         />
+         <input
+            type="password"
+            id="password"
+            placeholder="Enter your password"
+            required
+         />
+         <button onclick="loginAndRegisterDevice()">Login</button>
+      </div>
+
+      <script>
+         // Firebase configuration (use your Firebase config here)
+         const firebaseConfig = {
+            apiKey: 'AIzaSyAY3iwjeZI5k6xR1_F7WpuxNZiPuMk_ogM',
+            authDomain: 'project-management-api-49fa9.firebaseapp.com',
+            projectId: 'project-management-api-49fa9',
+            storageBucket: 'project-management-api-49fa9.firebasestorage.app',
+            messagingSenderId: '832059360333',
+            appId: '1:832059360333:web:988ccf61dca26486a2c804',
+            measurementId: 'G-W3NMGFXER9',
+         };
+
+         // Initialize Firebase
+         const app = firebase.initializeApp(firebaseConfig);
+         const messaging = firebase.messaging();
+
+         // Request permission for push notifications
+         async function requestPermission() {
+            try {
+               const token = await messaging.getToken({
+                  vapidKey:
+                     'BHOfqFLmSp38zJ8phx-fJwxHoVrJEcYruP2h08qXIVtUoXgZqzAJdZMd03u7GBywyjN664hFsfM1aex5LRstkeM',
+               });
+               if (token) {
+                  console.log('FCM Token:', token);
+                  return token;
+               } else {
+                  console.log('No token received');
+               }
+            } catch (error) {
+               console.error('Error getting FCM token:', error);
+            }
+         }
+
+         // Handle incoming messages
+         messaging.onMessage(payload => {
+            console.log('Message received:', payload);
+            alert(
+               `New Notification: ${payload.notification.title}\n${payload.notification.body}`,
+            );
+         });
+
+         // Handle login and register device FCM token
+         async function loginAndRegisterDevice() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            if (!email || !password) {
+               alert('Please enter both email and password');
+               return;
+            }
+
+            // Request FCM token for the device
+            const fcmToken = await requestPermission();
+            if (!fcmToken) {
+               alert('Could not get FCM token. Please try again.');
+               return;
+            }
+
+            // Send login request to backend API
+            fetch('http://your-backend-api-url/login-and-notify/', {
+               method: 'POST',
+               headers: {
+                  'Content-Type': 'application/json',
+               },
+               body: JSON.stringify({
+                  email: email,
+                  password: password,
+                  fcm_token: fcmToken,
+                  device_name: 'Browser', // Optional: Send device name
+               }),
+            })
+               .then(response => response.json())
+               .then(data => {
+                  if (data.message === 'Login successful') {
+                     alert(
+                        'Logged in successfully! You will now receive notifications.',
+                     );
+                  } else {
+                     alert('Login failed: ' + data.error);
+                  }
+               })
+               .catch(error => {
+                  console.error('Error:', error);
+                  alert('Error during login. Please try again.');
+               });
+         }
+      </script>
+   </body>
+</html>
