@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+   <head>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <title>Login</title>
+      <link
+         rel="stylesheet"
+         href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      />
+   </head>
+   <body>
+      <div class="container mt-5">
+         <h2 class="text-center">Login</h2>
+         <form id="loginForm" class="mt-4">
+            <div class="mb-3">
+               <label for="email" class="form-label">Email</label>
+               <input
+                  type="email"
+                  class="form-control"
+                  id="email"
+                  placeholder="Enter your email"
+                  required
+               />
+            </div>
+            <div class="mb-3">
+               <label for="password" class="form-label">Password</label>
+               <input
+                  type="password"
+                  class="form-control"
+                  id="password"
+                  placeholder="Enter your password"
+                  required
+               />
+            </div>
+            <div class="mb-3">
+               <label for="deviceName" class="form-label">Device Name</label>
+               <input
+                  type="text"
+                  class="form-control"
+                  id="deviceName"
+                  placeholder="Enter your device name"
+                  required
+               />
+            </div>
+            <button type="submit" class="btn btn-primary w-100">Login</button>
+         </form>
+         <div id="response" class="mt-4"></div>
+      </div>
+
+      <!-- Firebase SDK and your script -->
+      <script type="module">
+         // Import Firebase modules
+         import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js';
+         import {
+            getMessaging,
+            getToken,
+         } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-messaging.js';
+
+         // Firebase configuration
+         const firebaseConfig = {
+            apiKey: 'AIzaSyAY3iwjeZI5k6xR1_F7WpuxNZiPuMk_ogM',
+            authDomain: 'project-management-api-49fa9.firebaseapp.com',
+            projectId: 'project-management-api-49fa9',
+            storageBucket: 'project-management-api-49fa9.firebasestorage.app',
+            messagingSenderId: '832059360333',
+            appId: '1:832059360333:web:988ccf61dca26486a2c804',
+            measurementId: 'G-W3NMGFXER9',
+         };
+
+         // Initialize Firebase
+         const app = initializeApp(firebaseConfig);
+         const messaging = getMessaging(app);
+
+         // Function to get FCM Token
+         async function getFCMToken() {
+            try {
+               const token = await getToken(messaging, {
+                  vapidKey:
+                     'BHOfqFLmSp38zJ8phx-fJwxHoVrJEcYruP2h08qXIVtUoXgZqzAJdZMd03u7GBywyjN664hFsfM1aex5LRstkeM',
+               });
+               return token;
+            } catch (error) {
+               console.error('Error retrieving FCM token:', error);
+               if (error.code === 'messaging/permission-blocked') {
+                  document.getElementById('response').innerHTML =
+                     '<div class="alert alert-danger">Notification permission was blocked. Please enable notifications in your browser settings.</div>';
+               }
+               return null;
+            }
+         }
+
+         // Handle form submission
+         document
+            .getElementById('loginForm')
+            .addEventListener('submit', async function (event) {
+               event.preventDefault();
+
+               const email = document.getElementById('email').value;
+               const password = document.getElementById('password').value;
+               const deviceName = document.getElementById('deviceName').value;
+               const fcmToken = await getFCMToken();
+
+               if (!fcmToken) {
+                  document.getElementById('response').innerHTML =
+                     '<div class="alert alert-danger">Failed to get FCM token. Please try again.</div>';
+                  return;
+               }
+
+               const response = await fetch(
+                  'http://127.0.0.1:8000/auth/login/',
+                  {
+                     method: 'POST',
+                     headers: {
+                        'Content-Type': 'application/json',
+                     },
+                     body: JSON.stringify({
+                        email,
+                        password,
+                        fcm_token: fcmToken,
+                        device_name: deviceName,
+                     }),
+                  },
+               );
+
+               const result = await response.json();
+
+               if (response.ok) {
+                  document.getElementById(
+                     'response',
+                  ).innerHTML = `<div class="alert alert-success">${result.message}</div>`;
+               } else {
+                  document.getElementById(
+                     'response',
+                  ).innerHTML = `<div class="alert alert-danger">${result.message}</div>`;
+               }
+            });
+
+         // Request permission for notifications
+         Notification.requestPermission()
+            .then(permission => {
+               if (permission === 'granted') {
+                  console.log('Notification permission granted.');
+               } else if (permission === 'denied') {
+                  console.error('Notification permission denied.');
+                  document.getElementById('response').innerHTML =
+                     '<div class="alert alert-warning">Notification permission denied. Please enable notifications in your browser settings.</div>';
+               } else if (permission === 'default') {
+                  console.error('Notification permission is in default state.');
+                  document.getElementById('response').innerHTML =
+                     '<div class="alert alert-warning">Notification permission is in default state. Please enable notifications.</div>';
+               }
+            })
+            .catch(err => {
+               console.error('Error requesting notification permission:', err);
+               document.getElementById('response').innerHTML =
+                  '<div class="alert alert-warning">Error requesting notification permission. Please try again later.</div>';
+            });
+      </script>
+   </body>
+</html>
