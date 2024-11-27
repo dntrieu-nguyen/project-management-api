@@ -15,6 +15,7 @@ import jwt
 from datetime import datetime, timedelta, timezone
 from utils.send_mail import send_email
 import random
+from django.template.loader import render_to_string
 
 
 @swagger_auto_schema(
@@ -276,17 +277,17 @@ def forgot_password(request, *args, **kwargs):
     random_number = random.randint(10000, 99999)
     set_cache(f'forgot_pass:{email}', random_number, 300)
 
-    # subject = "Welcome to Django App"
-    # txt_ = "Thank you for signing up."
-    # from_email = "buithiennhan0345@gmail.com"
-    # recipient_list = "nhan.bui@rikai.technology"
-    # html_ = render_to_string('forgot_password.html', {
-    #     'name': user.email
-    # })
+    subject = "Welcome to Django App"
+    txt_ = "Thank you for signing up."
+    from_email = user.email
+    recipient_list = user.email
+    html_ = render_to_string('forgot_password.html', {
+        'secret_key': str(random_number)
+    })
 
-    # result = send_email(subject, txt_, from_email, recipient_list, html_)
+    result = send_email(subject, txt_, from_email, recipient_list, html_)
 
-    return success_response(data={"key": random_number})
+    return success_response(data={"message": 'Send mail successfully'})
 
 
 @swagger_auto_schema(
