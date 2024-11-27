@@ -3,159 +3,192 @@
    <head>
       <meta charset="UTF-8" />
       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-      <title>Login</title>
-      <link
-         rel="stylesheet"
-         href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
-      />
+      <title>Firebase Notifications - Load More</title>
+      <!-- Firebase App and Database in compatibility mode -->
+      <script src="https://www.gstatic.com/firebasejs/9.16.0/firebase-app-compat.js"></script>
+      <script src="https://www.gstatic.com/firebasejs/9.16.0/firebase-database-compat.js"></script>
    </head>
    <body>
-      <div class="container mt-5">
-         <h2 class="text-center">Login</h2>
-         <form id="loginForm" class="mt-4">
-            <div class="mb-3">
-               <label for="email" class="form-label">Email</label>
-               <input
-                  type="email"
-                  class="form-control"
-                  id="email"
-                  placeholder="Enter your email"
-                  required
-               />
-            </div>
-            <div class="mb-3">
-               <label for="password" class="form-label">Password</label>
-               <input
-                  type="password"
-                  class="form-control"
-                  id="password"
-                  placeholder="Enter your password"
-                  required
-               />
-            </div>
-            <div class="mb-3">
-               <label for="deviceName" class="form-label">Device Name</label>
-               <input
-                  type="text"
-                  class="form-control"
-                  id="deviceName"
-                  placeholder="Enter your device name"
-                  required
-               />
-            </div>
-            <button type="submit" class="btn btn-primary w-100">Login</button>
-         </form>
-         <div id="response" class="mt-4"></div>
+      <h1>Firebase Realtime Database - Load More Notifications</h1>
+
+      <!-- Create Notification -->
+      <div>
+         <h3>Create Notification</h3>
+         <label for="user_id">User ID:</label>
+         <input type="text" id="user_id" placeholder="Enter User ID" /><br />
+         <label for="title">Title:</label>
+         <input type="text" id="title" placeholder="Enter title" /><br />
+         <label for="content">Content:</label>
+         <input type="text" id="content" placeholder="Enter content" /><br />
+         <label for="isRead">Is Read:</label>
+         <input type="checkbox" id="isRead" /><br />
+         <label for="sender_id">Sender ID:</label>
+         <input
+            type="text"
+            id="sender_id"
+            placeholder="Enter Sender ID"
+         /><br />
+         <button id="createNotification">Create Notification</button>
       </div>
 
-      <!-- Firebase SDK and your script -->
-      <script type="module">
-         // Import Firebase modules
-         import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js';
-         import {
-            getMessaging,
-            getToken,
-         } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-messaging.js';
+      <!-- Display Notifications -->
+      <div>
+         <h3>Realtime Notifications:</h3>
+         <div id="notificationsList">No notifications yet...</div>
+         <button id="loadMore" style="display: none">Load More</button>
+      </div>
 
-         // Firebase configuration
+      <script>
          const firebaseConfig = {
             apiKey: 'AIzaSyAY3iwjeZI5k6xR1_F7WpuxNZiPuMk_ogM',
             authDomain: 'project-management-api-49fa9.firebaseapp.com',
+            databaseURL:
+               'https://project-management-api-49fa9-default-rtdb.firebaseio.com/',
             projectId: 'project-management-api-49fa9',
-            storageBucket: 'project-management-api-49fa9.firebasestorage.app',
+            storageBucket: 'project-management-api-49fa9.appspot.com',
             messagingSenderId: '832059360333',
             appId: '1:832059360333:web:988ccf61dca26486a2c804',
             measurementId: 'G-W3NMGFXER9',
          };
 
          // Initialize Firebase
-         const app = initializeApp(firebaseConfig);
-         const messaging = getMessaging(app);
+         const app = firebase.initializeApp(firebaseConfig);
+         const database = firebase.database(app);
 
-         // Function to get FCM Token
-         async function getFCMToken() {
-            try {
-               const token = await getToken(messaging, {
-                  vapidKey:
-                     'BHOfqFLmSp38zJ8phx-fJwxHoVrJEcYruP2h08qXIVtUoXgZqzAJdZMd03u7GBywyjN664hFsfM1aex5LRstkeM',
-               });
-               return token;
-            } catch (error) {
-               console.error('Error retrieving FCM token:', error);
-               if (error.code === 'messaging/permission-blocked') {
-                  document.getElementById('response').innerHTML =
-                     '<div class="alert alert-danger">Notification permission was blocked. Please enable notifications in your browser settings.</div>';
+         // DOM Elements
+         const userIdInput = document.getElementById('user_id');
+         const titleInput = document.getElementById('title');
+         const contentInput = document.getElementById('content');
+         const isReadInput = document.getElementById('isRead');
+         const senderIdInput = document.getElementById('sender_id');
+         const createButton = document.getElementById('createNotification');
+         const notificationsList = document.getElementById('notificationsList');
+         const loadMoreButton = document.getElementById('loadMore');
+
+         let notifications = []; // To store all notifications
+         let displayedCount = 0; // Track number of notifications displayed
+         const loadStep = 2; // Number of notifications to load per click
+
+         // Create Notification
+         createButton.addEventListener('click', () => {
+            const userId = userIdInput.value.trim();
+            const title = titleInput.value.trim();
+            const content = contentInput.value.trim();
+            const isRead = isReadInput.checked;
+            const senderId = senderIdInput.value.trim();
+
+            if (userId && title && content && senderId) {
+               const notificationId = database
+                  .ref()
+                  .child('notifications')
+                  .push().key;
+
+               const notificationData = {
+                  title,
+                  content,
+                  created_at: new Date().toISOString(),
+                  is_read: isRead,
+                  sender_id: senderId,
+               };
+
+               database
+                  .ref('notifications/' + userId + '/' + notificationId)
+                  .set(notificationData)
+                  .then(() => {
+                     alert('Notification created successfully!');
+                     resetForm();
+                  })
+                  .catch(error =>
+                     console.error('Error creating notification:', error),
+                  );
+            } else {
+               alert('Please fill in all required fields.');
+            }
+         });
+
+         // Reset form
+         function resetForm() {
+            userIdInput.value = '';
+            titleInput.value = '';
+            contentInput.value = '';
+            isReadInput.checked = false;
+            senderIdInput.value = '';
+         }
+
+         // Realtime Notifications
+         function listenToRealtimeNotifications() {
+            database.ref('notifications').on('value', snapshot => {
+               const data = snapshot.val();
+               notifications = [];
+
+               if (data) {
+                  Object.entries(data).forEach(
+                     ([userId, userNotifications]) => {
+                        Object.entries(userNotifications).forEach(
+                           ([id, notification]) => {
+                              notifications.push({
+                                 userId,
+                                 id,
+                                 ...notification,
+                              });
+                           },
+                        );
+                     },
+                  );
+
+                  // Sort notifications by created_at descending
+                  notifications.sort(
+                     (a, b) => new Date(b.created_at) - new Date(a.created_at),
+                  );
+
+                  displayedCount = 0; // Reset displayed count
+                  displayNotifications(); // Display notifications
+               } else {
+                  notificationsList.innerHTML = 'No notifications available...';
                }
-               return null;
+            });
+         }
+
+         // Display Notifications
+         function displayNotifications() {
+            const notificationsHtml = notifications
+               .slice(0, displayedCount + loadStep)
+               .map(notification => {
+                  return `
+            <div>
+              <h4>User ID: ${notification.userId}</h4>
+              <p>Notification ID: ${notification.id}</p>
+              <strong>${notification.title}</strong>
+              <p>${notification.content}</p>
+              <p>Sent at: ${new Date(
+                 notification.created_at,
+              ).toLocaleString()}</p>
+              <p>Status: ${notification.is_read ? 'Read' : 'Unread'}</p>
+              <p>Sender ID: ${notification.sender_id}</p>
+              <hr />
+            </div>
+          `;
+               })
+               .join('');
+
+            notificationsList.innerHTML = notificationsHtml;
+
+            // Update displayed count
+            displayedCount += loadStep;
+
+            // Show or hide Load More button
+            if (displayedCount >= notifications.length) {
+               loadMoreButton.style.display = 'none';
+            } else {
+               loadMoreButton.style.display = 'block';
             }
          }
 
-         // Handle form submission
-         document
-            .getElementById('loginForm')
-            .addEventListener('submit', async function (event) {
-               event.preventDefault();
+         // Load More button click handler
+         loadMoreButton.addEventListener('click', displayNotifications);
 
-               const email = document.getElementById('email').value;
-               const password = document.getElementById('password').value;
-               const deviceName = document.getElementById('deviceName').value;
-               const fcmToken = await getFCMToken();
-
-               if (!fcmToken) {
-                  document.getElementById('response').innerHTML =
-                     '<div class="alert alert-danger">Failed to get FCM token. Please try again.</div>';
-                  return;
-               }
-
-               const response = await fetch(
-                  'http://127.0.0.1:8000/auth/login/',
-                  {
-                     method: 'POST',
-                     headers: {
-                        'Content-Type': 'application/json',
-                     },
-                     body: JSON.stringify({
-                        email,
-                        password,
-                        fcm_token: fcmToken,
-                        device_name: deviceName,
-                     }),
-                  },
-               );
-
-               const result = await response.json();
-
-               if (response.ok) {
-                  document.getElementById(
-                     'response',
-                  ).innerHTML = `<div class="alert alert-success">${result.message}</div>`;
-               } else {
-                  document.getElementById(
-                     'response',
-                  ).innerHTML = `<div class="alert alert-danger">${result.message}</div>`;
-               }
-            });
-
-         // Request permission for notifications
-         Notification.requestPermission()
-            .then(permission => {
-               if (permission === 'granted') {
-                  console.log('Notification permission granted.');
-               } else if (permission === 'denied') {
-                  console.error('Notification permission denied.');
-                  document.getElementById('response').innerHTML =
-                     '<div class="alert alert-warning">Notification permission denied. Please enable notifications in your browser settings.</div>';
-               } else if (permission === 'default') {
-                  console.error('Notification permission is in default state.');
-                  document.getElementById('response').innerHTML =
-                     '<div class="alert alert-warning">Notification permission is in default state. Please enable notifications.</div>';
-               }
-            })
-            .catch(err => {
-               console.error('Error requesting notification permission:', err);
-               document.getElementById('response').innerHTML =
-                  '<div class="alert alert-warning">Error requesting notification permission. Please try again later.</div>';
-            });
+         // Initialize Realtime Listener
+         listenToRealtimeNotifications();
       </script>
    </body>
 </html>
