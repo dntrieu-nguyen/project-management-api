@@ -7,12 +7,14 @@ from rest_framework import status
 from utils.jwt import decode_token, generate_access_token, generate_refresh_token
 from app.models import User, RefreshToken
 from user.serializers import UserSerializers
-from auths.serializers import AuthSerializer, UserDataSerializer, RegisterSerializer, UpdateUserSerializer, ChangePasswordSerializer, RefreshTokenSerializer
+from auths.serializers import AuthSerializer, UserDataSerializer, RegisterSerializer, UpdateUserSerializer, ChangePasswordSerializer, RefreshTokenSerializer, ForgotPasswordSerializer, ResetPasswordSerializer
 from middlewares import auth_middleware
-from utils.redis import set_cache
+from utils.redis import set_cache, get_cache
 from utils.response import success_response, failure_response
 import jwt
 from datetime import datetime, timedelta, timezone
+from utils.send_mail import send_email
+import random
 
 
 @swagger_auto_schema(
@@ -46,7 +48,7 @@ def login(request, *args, **kwargs):
         if not User:
             return failure_response(message="Not found user", status_code=status.HTTP_404_NOT_FOUND)
         if user.check_password(password) == False:
-            return failure_response(data={"message": "Password is incorrect"}, status_code=status.HTTP_404_NOT_FOUND)
+            return failure_response(message="Password is incorrect", status_code=status.HTTP_404_NOT_FOUND)
 
         user_data = UserSerializers(user).data
 
@@ -223,7 +225,7 @@ def refresh_token(request, *args, **kwargs):
     serializer = RefreshTokenSerializer(data=request.data)
 
     if not serializer.is_valid():
-        return failure_response(data=serializer.errors)
+        raise ValidationError(serializer.errors)
     refresh_token = serializer.validated_data['refresh_token']
 
     old_refresh_token = RefreshToken.objects.filter(
@@ -243,3 +245,86 @@ def refresh_token(request, *args, **kwargs):
         return failure_response(message="Refresh Token expire", status_code=status.HTTP_401_UNAUTHORIZED)
     except jwt.InvalidTokenError as e:
         return failure_response(message="Refresh Token invalid", status_code=status.HTTP_401_UNAUTHORIZED)
+
+
+@swagger_auto_schema(
+    method='POST',
+    operation_description="Forgot password",
+    tags=["Auth"],
+    request_body=ForgotPasswordSerializer(),
+    responses={
+        200: openapi.Response(
+            "Success",
+            examples=None
+        ),
+        400: openapi.Response(
+            "Validation Error", examples=None
+        )
+    },
+    security=[]
+)
+@api_view(['POST'])
+def forgot_password(request, *args, **kwargs):
+    serializer = ForgotPasswordSerializer(data=request.data)
+    if not serializer.is_valid():
+        raise ValidationError(serializer.errors)
+    email = serializer.validated_data.get('email')
+    user = User.objects.filter(email=email).first()
+    if not user:
+        return failure_response(status_code=status.HTTP_404_NOT_FOUND, message="Not found user")
+
+    random_number = random.randint(10000, 99999)
+    set_cache(f'forgot_pass:{email}', random_number, 300)
+
+    # subject = "Welcome to Django App"
+    # txt_ = "Thank you for signing up."
+    # from_email = "buithiennhan0345@gmail.com"
+    # recipient_list = "nhan.bui@rikai.technology"
+    # html_ = render_to_string('forgot_password.html', {
+    #     'name': user.email
+    # })
+
+    # result = send_email(subject, txt_, from_email, recipient_list, html_)
+
+    return success_response(data={"key": random_number})
+
+
+@swagger_auto_schema(
+    method='POST',
+    operation_description="Reset password",
+    tags=["Auth"],
+    request_body=ResetPasswordSerializer(),
+    responses={
+        200: openapi.Response(
+            "Success",
+            examples=None
+        ),
+        400: openapi.Response(
+            "Validation Error", examples=None
+        )
+    },
+    security=[]
+)
+@api_view(['POST'])
+def reset_password(request, *args, **kwargs):
+    serializer = ResetPasswordSerializer(data=request.data)
+    if not serializer.is_valid():
+        raise ValidationError(serializer.errors)
+
+    secret_key = serializer.validated_data.get('secret_key')
+    email = serializer.validated_data.get('email')
+
+    isExist = get_cache(f'forgot_pass:{email}')
+    if isExist == None:
+        return failure_response(message="Not found secret key", status_code=status.HTTP_404_NOT_FOUND)
+    if str(secret_key) != str(isExist):
+        return failure_response(message="Secret key not valid", status_code=status.HTTP_422_UNPROCESSABLE_ENTITY)
+
+    new_password = serializer.validated_data.get('new_password')
+    user = User.objects.filter(email=email).first()
+    if user is None:
+        return failure_response(message="Not found user", status_code=status.HTTP_404_NOT_FOUND)
+    user.set_password(new_password)
+    user.save()
+    user_data = UserDataSerializer(user).data
+    return success_response(data=user_data)
