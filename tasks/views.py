@@ -2,7 +2,7 @@ from rest_framework.decorators import api_view
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from utils.response import success_response, failure_response
-from middlewares import auth_middleware
+from middlewares import auth_middleware, admin_middleware
 from rest_framework import status
 from .serializers import GetTasksSerializer, CreateTaskSerializer, UpdateTaskSerializer
 from rest_framework.exceptions import ValidationError
@@ -58,6 +58,7 @@ def get_task_by_id(request, id, *args, **kwargs):
     security=[]
 )
 @api_view(['GET'])
+@auth_middleware
 def get_tasks_by_project_id(request, *args, **kwargs):
     serializer = GetTasksSerializer(data=request.query_params)
     if not serializer.is_valid():
@@ -107,10 +108,20 @@ def get_tasks_by_project_id(request, *args, **kwargs):
     security=[]
 )
 @api_view(['POST'])
+@auth_middleware
 def create_task(request, *args, **kwargs):
     serializer = CreateTaskSerializer(data=request.data)
     if not serializer.is_valid():
         raise ValidationError(serializer.errors)
+
+    user_id = request.user['id']
+
+    project = Project.objects.filter(id=project_id).first()
+    if project is None:
+        return failure_response(message="Project not found", status_code=status.HTTP_404_NOT_FOUND)
+
+    if project.members.filter(id=user_id).first() is None:
+        return failure_response(message="User not in project", status_code=status.HTTP_403_FORBIDDEN)
 
     project_id = serializer.validated_data.get('project_id')
     title = serializer.validated_data.get('title')
@@ -156,10 +167,19 @@ def create_task(request, *args, **kwargs):
     security=[]
 )
 @api_view(['PATCH'])
+@auth_middleware
 def update_task(request, *args, **kwargs):
     serializer = UpdateTaskSerializer(data=request.data)
     if not serializer.is_valid():
         raise ValidationError(serializer.errors)
+    user_id = request.user['id']
+
+    project = Project.objects.filter(id=project_id).first()
+    if project is None:
+        return failure_response(message="Project not found", status_code=status.HTTP_404_NOT_FOUND)
+
+    if project.members.filter(id=user_id).first() is None:
+        return failure_response(message="User not in project", status_code=status.HTTP_403_FORBIDDEN)
 
     task_id = serializer.validated_data.get('task_id')
     project_id = serializer.validated_data.get('project_id')
@@ -225,14 +245,27 @@ def update_task(request, *args, **kwargs):
     security=[]
 )
 @api_view(['DELETE'])
+@auth_middleware
+@admin_middleware
 def delete_task(request, *args, **kwargs):
+    user_id = request.user['id']
     task_id = request.query_params.get('task_id')
-    task = get_object_or_404(Task, id=task_id)
+    project_id = request.query_params.get('project_id')
 
     if not task_id:
         return failure_response(message="task_id is required", status_code=status.HTTP_422_UNPROCESSABLE_ENTITY)
 
-    task = get_object_or_404(Task, id=task_id)
+    if not project_id:
+        return failure_response(message="project_id is required", status_code=status.HTTP_422_UNPROCESSABLE_ENTITY)
+
+    project = Project.objects.filter(id=project_id).first()
+    if project is None:
+        return failure_response(message="Project not found", status_code=status.HTTP_404_NOT_FOUND)
+
+    if project.members.filter(id=user_id).first() is None:
+        return failure_response(message="User not in project", status_code=status.HTTP_403_FORBIDDEN)
+
+    task = get_object_or_404(Task, id=task_id, project_id=project_id)
     task.deleted_at = timezone.now()
     task.is_deleted = True
     task.save()
