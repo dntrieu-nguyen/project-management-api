@@ -268,3 +268,5 @@ FIREBASE = {
     "client_x509_cert_url": os.getenv('FIREBASE_CLIENT_CERT'),
     "universe_domain": os.getenv('FIREBASE_DOMAIN')
 }
+
+FIREBASE_DB_URL = os.getenv('FIREBASE_DB_URL')

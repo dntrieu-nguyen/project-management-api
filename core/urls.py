@@ -26,6 +26,8 @@ urlpatterns = [
     path('api/project/', include('projects.urls')),
     path('api/tasks/', include('tasks.urls')),
     path('api/user/', include('user.urls')),
+    path('api/notification/', include('notifications.urls')),
+
 
     # swagger
     # Include DRF-Swagger URLs

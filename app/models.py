@@ -48,21 +48,6 @@ class User(AbstractUser, SoftDeleteMixin):
     class Meta:
         db_table = 'user'
 
-
-class Firebase_tokens(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user = models.ForeignKey('User', on_delete=models.CASCADE, related_name='devices', help_text="Người dùng sở hữu thiết bị")
-    fcm_token = models.CharField(max_length=255, unique=True, help_text="Token FCM của thiết bị")
-    device_name = models.CharField(max_length=255, blank=True, null=True, help_text="Tên thiết bị (tuỳ chọn)")
-    last_active = models.DateTimeField(auto_now=True, help_text="Lần cuối thiết bị hoạt động")
-
-    class Meta:
-        db_table = 'firebase_tokens'
-        unique_together = ('user', 'fcm_token')  
-
-    def __str__(self):
-        return f"Device for {self.user.username if self.user else 'Unknown'}"
-
 class Project(SoftDeleteMixin):
     STATUS_CHOICES = [
         ('pending', 'Pending'),
@@ -172,30 +157,6 @@ class Message(SoftDeleteMixin):
     def __str__(self):
         sender_name = self.sender.username if self.sender else "Unknown"
         return f"Message from {sender_name} in {self.room.name}"
-
-
-class Notification(SoftDeleteMixin):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user = models.ForeignKey(User, on_delete=models.SET_NULL,
-                             blank=True, null=True, related_name="notifications")
-    task = models.ForeignKey(Task, on_delete=models.SET_NULL, blank=True, null=True,
-                             related_name="notifications", help_text="Liên kết tới nhiệm vụ (nếu có)")
-    title = models.CharField(max_length=255, blank=True, null=True)  
-    content = models.TextField(default="This is a notification", blank=True, null=True) 
-    sent_at = models.DateTimeField(auto_now_add=True, blank=True, null=True)
-    is_read = models.BooleanField(default=False)
-    scheduled_time = models.DateTimeField(
-        blank=True, null=True, help_text="Thời gian dự kiến gửi thông báo")
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        db_table = 'notification'
-
-    def __str__(self):
-        user_name = self.user.username if self.user else "Unknown"
-        return f"Notification for {user_name}"
-
 
 class RefreshToken(SoftDeleteMixin):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
