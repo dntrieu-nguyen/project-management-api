@@ -43,3 +43,13 @@ def auth_middleware(view_func):
             return failure_response(message="Token invalid", status_code=status.HTTP_401_UNAUTHORIZED)
 
     return wrapper
+
+
+def admin_middleware(view_func):
+    @wraps(view_func)
+    def wrapper(request, *args, **kwargs):
+        role = request.user['role']
+        if role == False:
+            return failure_response(message="Must be admin", status_code=status.HTTP_403_FORBIDDEN)
+        return view_func(request, *args, **kwargs)
+    return wrapper
