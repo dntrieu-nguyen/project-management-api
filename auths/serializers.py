@@ -7,7 +7,7 @@ import re
 class RegisterSerializer(serializers.Serializer):
     email = serializers.EmailField(required=True)
     password = serializers.CharField(
-        write_only=True, required=True, min_length=8
+        write_only=True, required=True, min_length=6
     )
     first_name = serializers.CharField(required=True, min_length=4)
     last_name = serializers.CharField(required=True, min_length=4)
