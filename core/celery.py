@@ -3,9 +3,9 @@ import os
 from celery import Celery
 
 # Đặt tên dự án của bạn
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "myproject.settings")
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "core.settings")
 
-app = Celery("myproject")
+app = Celery("core")
 
 # Đọc cấu hình từ Django settings
 app.config_from_object("django.conf:settings", namespace="CELERY")
