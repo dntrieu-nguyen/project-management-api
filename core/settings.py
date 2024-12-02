@@ -30,7 +30,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-24@7ej6h7jyc$q&g)5y*)tpq&^!44l#3llgh4n@w^heu_pbx8p'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
 # Logger
 LOGGING = {
@@ -57,9 +57,43 @@ LOGGING = {
         }
     },
 }
+# Allowed Hosts
+ALLOWED_HOSTS = ['project-management-api-94wr.onrender.com', '127.0.0.1']
 
-ALLOWED_HOSTS = []
+# Security
+# SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+# SECURE_SSL_REDIRECT = not DEBUG
+# CSRF_TRUSTED_ORIGINS = [
+#     "https://project-management-api-94wr.onrender.com",
+#     "http://127.0.0.1:8000",
+#     "wss://project-management-api-94wr.onrender.com",
+#     "ws://127.0.0.1:8000",
+# ]
 
+# CORS
+# CORS_ALLOWED_ORIGIN_REGEXES = [
+#     r"^https://.*\.onrender\.com$",
+#     r"^http://127\.0\.0\.1:[0-9]+$",
+#     r"^ws://127\.0\.0\.1:[0-9]+$",
+#     r"^wss://.*\.onrender\.com$",
+# ]
+CORS_ALLOW_ALL_ORIGINS = True
+
+# CORS_ALLOW_HEADERS = [
+#     'content-type',
+#     'authorization',
+#     'x-csrftoken',
+#     'x-requested-with',
+# ]
+# CORS_ALLOW_CREDENTIALS = True
+# CORS_ALLOW_METHODS = [
+#     "GET",
+#     "POST",
+#     "PUT",
+#     "PATCH",
+#     "DELETE",
+#     "OPTIONS",
+# ]
 
 # Application definition
 
