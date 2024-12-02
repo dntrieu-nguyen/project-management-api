@@ -18,7 +18,7 @@ def get_all_notifications_by_user(request):
     """
     user_id = request.user['id']
 
-    ref = db.reference(f'notifications/{user_id}')
+    ref = db.reference(f"notifications/{user_id}")
 
     snapshot = ref.get()
 
@@ -57,7 +57,7 @@ def send_notifications_to_user(request):
     notification_data['updated_at'] = datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%fZ')
     
     user_id = notification_data['user_id']
-    ref = db.reference(f'notifications/{UUID(user_id)}')
+    ref = db.reference(f"notifications/{UUID(user_id)}")
     
     # Uncomment the following line if you need to save the notification
     snapshot = ref.push(notification_data) 
