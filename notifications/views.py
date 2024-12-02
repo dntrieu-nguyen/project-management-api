@@ -13,8 +13,7 @@ def get_all_notifications_by_user(request):
     """
     Lấy tất cả thông báo của người dùng dựa trên ID.
     """
-    # Sử dụng query parameters thay vì request.data cho GET request
-    user_id = request.data['id']
+    user_id = request.data.get('id')
     
     if not user_id:
         return failure_response(
@@ -22,7 +21,7 @@ def get_all_notifications_by_user(request):
             data={'id': ['This field is required.']}
         )
 
-    ref = db.reference(f'notifications/{user_id}')
+    ref = db.reference(f'notifications/{str(user_id)}')
     snapshot = ref.get()
 
     if not snapshot:
@@ -62,7 +61,7 @@ def send_notifications_to_user(request):
     
     req_body.validated_data['sender_id'] = sender['id'].replace('-','')
     req_body.validated_data['created_at'] = datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%fZ')
-    user_id = req_body.validated_data['user_id']
+    user_id = str(req_body.validated_data['user_id'])
     ref = db.reference(f'notifications/{user_id}')
     snapshot = ref.push(req_body.validated_data) 
 
@@ -74,9 +73,9 @@ def send_notifications_to_user(request):
 @api_view(['PUT'])
 @auth_middleware
 def update_status_notifications(request):
+    # Validate input data
     req_body = NotificationRequestUpdateStatusSerializers(data=request.data)
-    user_id = request.user['id']
-
+    user_id = request.user.get('id')  # Using get to avoid KeyError if 'id' is missing
 
     if not req_body.is_valid():
         return failure_response(
@@ -84,23 +83,29 @@ def update_status_notifications(request):
             data=req_body.errors
         )
 
- 
-    notification_ref = db.reference(f'notifications/{str(user_id).replace('-', '')}/{req_body.validated_data["notification_id"]}')
+    # Ensure 'notification_id' exists in validated data
+    notification_id = req_body.validated_data.get('notification_id')
+    if not notification_id:
+        return failure_response(message="Notification ID is required")
+
+    # Build the reference for the notification in the database
+    notification_ref = db.reference(f'notifications/{str(user_id).replace("-", "")}/{notification_id}')
     current_data = notification_ref.get() 
 
     if not current_data:
         return failure_response(message="Notification not found")
 
-   
+    # Prepare the data to update
     update_data = {
         'is_read': True,
         'updated_at': datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%fZ')
     }
 
- 
+    # Update the notification data in the database
     notification_ref.update(update_data)
 
- 
+    # Retrieve the updated notification
     detail_notification_snapshot = notification_ref.get()
 
     return success_response(message='Notification updated successfully', data=detail_notification_snapshot)
+
