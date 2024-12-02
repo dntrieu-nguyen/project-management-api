@@ -52,7 +52,7 @@ def create_comment_task_by_user(request):
         }
 
         # Push data to Firebase
-        ref = db.reference(f'comments/{task_id}')
+        ref = db.reference(f"comments/{task_id}")
         snapshot = ref.push(new_data)
 
         return success_response(
@@ -75,7 +75,7 @@ def update_comment_by_user(request):
         if not req_body.is_valid():
             return failure_response(message="Validations Errors", data= req_body.errors)
 
-        ref = db.reference(f'comments/{req_body.validated_data['task_id']}/{req_body.validated_data['comment_id']}')
+        ref = db.reference(f"comments/{req_body.validated_data['task_id']}/{req_body.validated_data['comment_id']}")
         task_id = req_body.validated_data['task_id']
 
         try:

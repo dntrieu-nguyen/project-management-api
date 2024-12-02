@@ -63,7 +63,7 @@ def login(request, *args, **kwargs):
         new_refresh_token.save()
 
         profile = UserDataSerializer(user).data
-        set_cache(f'access_token:{access_token}', access_token, 6000)
+        set_cache(f"access_token:{access_token}", access_token, 6000)
         return success_response(data={'access_token': access_token, 'refresh_token': refresh_token, 'data': profile}, status_code=200)
     except User.DoesNotExist:
         return success_response(data={"message": "Not found user"}, status_code=status.HTTP_404_NOT_FOUND)
@@ -239,7 +239,7 @@ def refresh_token(request, *args, **kwargs):
         user = User.objects.filter(id=decoded['id']).first()
         new_access_token = generate_access_token(
             id=decoded['id'], role=user.is_staff)
-        set_cache(f'access_token:{new_access_token}', new_access_token, 6000)
+        set_cache(f"access_token:{new_access_token}", new_access_token, 6000)
 
         return success_response(status_code=200, data={"new_access_token": new_access_token})
     except jwt.ExpiredSignatureError:
@@ -275,7 +275,7 @@ def forgot_password(request, *args, **kwargs):
         return failure_response(status_code=status.HTTP_404_NOT_FOUND, message="Not found user")
 
     random_number = random.randint(10000, 99999)
-    set_cache(f'forgot_pass:{email}', random_number, 300)
+    set_cache(f"forgot_pass:{email}", random_number, 300)
 
     subject = "Welcome to Django App"
     txt_ = "Thank you for signing up."
@@ -315,7 +315,7 @@ def reset_password(request, *args, **kwargs):
     secret_key = serializer.validated_data.get('secret_key')
     email = serializer.validated_data.get('email')
 
-    isExist = get_cache(f'forgot_pass:{email}')
+    isExist = get_cache(f"forgot_pass:{email}")
     if isExist == None:
         return failure_response(message="Not found secret key", status_code=status.HTTP_404_NOT_FOUND)
     if str(secret_key) != str(isExist):
