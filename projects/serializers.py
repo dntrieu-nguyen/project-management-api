@@ -54,3 +54,8 @@ class ProjectFilter(django_filters.FilterSet):
             'created_at_end', 
             'updated_at_start', 
             'updated_at_end']
+
+class AddOrDeleteUserToProjectSerializers(serializers.Serializer):
+    project_id = serializers.CharField()
+    members = serializers.CharField()
+    
