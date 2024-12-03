@@ -116,12 +116,6 @@ def create_task(request, *args, **kwargs):
 
     user_id = request.user['id']
 
-    project = Project.objects.filter(id=project_id).first()
-    if project is None:
-        return failure_response(message="Project not found", status_code=status.HTTP_404_NOT_FOUND)
-
-    if project.members.filter(id=user_id).first() is None:
-        return failure_response(message="User not in project", status_code=status.HTTP_403_FORBIDDEN)
 
     project_id = serializer.validated_data.get('project_id')
     title = serializer.validated_data.get('title')
@@ -130,6 +124,12 @@ def create_task(request, *args, **kwargs):
     member_ids = serializer.validated_data.get('members')
     task_status = serializer.validated_data.get('status')
 
+    project = Project.objects.filter(id=project_id).first()
+    if project is None:
+        return failure_response(message="Project not found", status_code=status.HTTP_404_NOT_FOUND)
+
+    if project.members.filter(id=user_id).first() is None:
+        return failure_response(message="User not in project", status_code=status.HTTP_403_FORBIDDEN)
     try:
         project = Project.objects.get(id=project_id)
         task = Task.objects.create(title=title, description=description,

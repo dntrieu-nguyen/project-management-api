@@ -1,9 +1,12 @@
+from datetime import datetime
+import json
+import pytz
 from rest_framework import status
 from rest_framework.decorators import api_view
 from drf_yasg.utils import swagger_auto_schema
 from app.models import Project, User
 from middlewares import auth_middleware
-from projects.serializers import CreateProjectSerializers, ProjectFilter, ProjectSerializer
+from projects.serializers import AddOrDeleteUserToProjectSerializers, CreateProjectSerializers, ProjectFilter, ProjectSerializer
 from utils.pagination import Pagination
 from utils.response import failure_response, success_response
 from uuid import UUID
@@ -109,9 +112,17 @@ def get_all_projects_by_admin(request):
             status_code= status.HTTP_403_FORBIDDEN
             )
     query_set = Project.objects.all()
-    paginator = Pagination()  
-    result_page = paginator.paginate_queryset(query_set, request)
-    data = ProjectSerializer(result_page, many=True).data
+
+    # Filter
+    project_filter = ProjectFilter(request.GET, queryset=query_set)  
+    filtered_projects = project_filter.qs
+
+    # paginate
+    paginator = Pagination()
+    paginated_projects = paginator.paginate_queryset(filtered_projects, request)
+
+    # serializer data
+    data = ProjectSerializer(paginated_projects, many=True).data
     return success_response(
         message="Operator successfull",
         data= data, 
@@ -129,9 +140,13 @@ def get_all_projects_by_admin(request):
 @auth_middleware
 def get_project_by_filter(request):
     current_user = request.user
+    
     # get all project of user
     query_set = Project.objects.filter(
-        Q(owner=UUID(current_user['id'])) | Q(members__id=UUID(current_user['id']))).distinct() 
+        (Q(owner=UUID(current_user['id'])) | 
+        Q(members__id=UUID(current_user['id'])))
+        & Q(is_deleted = False)
+        ).distinct() 
 
     # apply filter
     project_filter = ProjectFilter(request.GET, queryset=query_set)  
@@ -148,4 +163,246 @@ def get_project_by_filter(request):
         message="Operator successfull",
         data= data, 
         paginator=paginator
+        )
+
+@swagger_auto_schema(
+    method='POST',
+    operation_description="Add user to project",
+    tags=["Projects"],
+    request_body=AddOrDeleteUserToProjectSerializers,
+    security=[]
+)
+@api_view(['POST'])
+@auth_middleware
+def add_user_to_project(request):
+    try:
+        user_id = str(request.user['id'])
+        req_body = AddOrDeleteUserToProjectSerializers(data=request.data)
+
+        if not req_body.is_valid():
+            return failure_response(
+                message="Validation Errors",
+                data=req_body.errors
+            )
+
+        validated_data = req_body.validated_data
+        req_members_list = json.loads(validated_data['members']) 
+        if not req_members_list:
+            return failure_response(
+                message="Members are required"
+            )
+
+        project = Project.objects.filter(
+            Q(owner=user_id) & Q(id=validated_data['project_id'])
+        ).first()
+
+        if not project:
+            return failure_response(message="You are not the owner of this project", status_code=status.HTTP_403_FORBIDDEN)
+
+        current_member_ids = {str(member.id) for member in project.members.all()}
+
+        new_members = []
+        invalid_members = []
+        exist_members = []
+        for member_id in req_members_list:
+            try:
+                member = User.objects.get(id=member_id)
+                if member_id not in current_member_ids:
+                    project.members.add(member)
+                    new_members.append(str(member.id))
+                else:
+                   exist_members.append(member_id)
+            except User.DoesNotExist:
+                invalid_members.append(member_id)
+
+        if invalid_members:
+            return failure_response(
+                message="Some users were not found",
+                data={
+                    "invalid_members":invalid_members
+                },
+                status_code=status.HTTP_404_NOT_FOUND
+            )
+        
+        if exist_members:
+            return failure_response(
+                message="Some users have been member already",
+                data={
+                    "exist_members": exist_members
+                }
+            )
+        
+        return success_response(
+            message="Users added successfully",
+            data={"added_members": new_members}
+        )
+
+    except Exception as e:
+        return failure_response(
+            message="An unexpected error occurred",
+            data=str(e),
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+    
+
+
+#delete member from user
+@swagger_auto_schema(
+    method='DELETE',
+    operation_description="Delete user from project",
+    request_body=AddOrDeleteUserToProjectSerializers,
+    tags=["Projects"],
+    security=[]
+)
+@api_view(['DELETE'])
+@auth_middleware
+def delete_user_from_project(request):
+    try:
+        user_id = str(request.user['id'])
+        req_body = AddOrDeleteUserToProjectSerializers(data=request.data)
+        if not req_body.is_valid():
+            return failure_response(
+                message="Validation Errors",
+                data= req_body.errors
+            )
+        validated_data = req_body.validated_data
+        req_members_list = json.loads(validated_data['members']) 
+        if not req_members_list:
+            return failure_response(
+                message="Members are required"
+            )
+        project = Project.objects.filter(
+            Q(owner=user_id) & Q(id=validated_data['project_id'])
+        ).first()
+
+        if not project:
+            return failure_response(message="You are not the owner of this project", status_code=status.HTTP_403_FORBIDDEN)
+
+        current_member_ids = {str(member.id) for member in project.members.all()}
+
+        removed_members = []
+        not_member = []
+        for member_id in req_members_list:
+            try:
+                member = User.objects.get(id=member_id)
+                if member_id in current_member_ids:
+                    project.members.remove(member)  
+                    removed_members.append(str(member.id))
+                else:
+                    not_member.append(member_id)
+            except User.DoesNotExist:
+                not_member.append(member_id)
+
+        if not_member:
+            return failure_response(
+                message="Some users were not found in this project",
+                data={"not_member": not_member},
+                status_code=status.HTTP_404_NOT_FOUND
+            )
+
+        return success_response(
+            message="Users removed successfully",
+            data={"removed_members": removed_members}
+        )
+    except Exception as e:
+        return failure_response(
+            message="An unexpected error occurred",
+            data=str(e),
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+    
+@api_view(['DELETE'])
+@auth_middleware
+def delete_project_by_owner_or_admin(request):
+    try:
+        user = request.user
+        project_id = request.query_params['project_id']
+
+        if not bool(project_id):
+            return failure_response(
+                message="Validation Errors",
+                data= {
+                    "project_id": "project_id is required"
+                }
+            )
+        
+        project = Project.objects.filter( Q(owner=user['id']) & Q(id=project_id)).first()
+
+        if user['role'] or project:
+            """
+            Trong project có task chưa hoàn thành thì không xoá
+            """
+            current_tasks = project.tasks.all()
+
+            task_not_completed = []
+            now_utc = datetime.utcnow().replace(tzinfo=pytz.UTC)
+
+            for task in current_tasks:
+                if task.due_date:  #
+                    if isinstance(task.due_date, datetime):
+                        due_date = task.due_date
+                    else:
+                        
+                        due_date = datetime.strptime(task.due_date, "%Y-%m-%dT%H:%M:%S%z")
+
+                    if due_date > now_utc: 
+                        task_not_completed.append(task.id)
+
+            if bool(len(task_not_completed)):
+                return failure_response(
+                    message="Complete all tasks before deleting the project",
+                    data={"incomplete_tasks": task_not_completed}
+                )
+            project.delete(soft=True)
+            return success_response(
+            message="Delete project successfully",
+            data={
+                "project": project_id
+            }
+        )
+        return failure_response(
+                message="You have no permission for this action",
+                status_code=status.HTTP_406_NOT_ACCEPTABLE
+            )
+
+    except Exception as e:
+        return failure_response(
+            message="An unexpected error occurred",
+            data=str(e),
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+@api_view(['POST'])
+@auth_middleware
+def restore_project(request):
+    try:
+        user = request.user
+        project_id = request.query_params['project_id']
+        
+        if not bool(project_id):
+            return failure_response(
+                message="Validation Errors",
+                data= {
+                    "project_id": "project_id is required"
+                }
+            )
+        
+        project = Project.objects.filter( Q(owner=user['id']) & Q(id=project_id)).first()
+        
+        if not user['role']:
+            return failure_response(
+                message="You dont have permissions for this action",
+                status_code=status.HTTP_403_FORBIDDEN
+            )
+        
+        project.restore()
+
+        return success_response(
+            message="restore successfully"
+        )
+    except Exception as e:
+        return failure_response(
+            message="An unexpected error occurred",
+            data=str(e),
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
         )

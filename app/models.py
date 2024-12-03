@@ -7,7 +7,7 @@ from django.contrib.auth.models import AbstractUser
 # Create your models here.
 class SoftDeletedManager(models.Manager):
     def get_queryset(self):
-        return super().get_queryset().filter(is_deleted=False)
+        return super().get_queryset()
 
 
 class SoftDeleteMixin(models.Model):
