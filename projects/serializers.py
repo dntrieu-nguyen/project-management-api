@@ -59,3 +59,36 @@ class AddOrDeleteUserToProjectSerializers(serializers.Serializer):
     project_id = serializers.CharField()
     members = serializers.CharField()
     
+
+"""
+Serializers for swagger
+"""
+
+# Serializer cho phản hồi thành công
+class RestoreProjectSuccessResponseSerializer(serializers.Serializer):
+    message = serializers.CharField(default="restore successfully")
+
+# Serializer cho lỗi
+class RestoreProjectErrorResponseSerializer(serializers.Serializer):
+    message = serializers.CharField(default="Validation Errors")
+    data = serializers.DictField(
+        child=serializers.CharField(),
+        default={"project_id": "project_id is required"}
+    )
+
+
+# Serializer cho phản hồi thành công
+class DeleteProjectSuccessResponseSerializer(serializers.Serializer):
+    message = serializers.CharField(default="Delete project successfully")
+    data = serializers.DictField(
+        child=serializers.CharField(),
+        default={"project": "project_id"}
+    )
+
+# Serializer cho phản hồi lỗi
+class DeleteProjectErrorResponseSerializer(serializers.Serializer):
+    message = serializers.CharField(default="Validation Errors")
+    data = serializers.DictField(
+        child=serializers.ListField(),
+        default={"incomplete_tasks": [1, 2, 3]}
+    )

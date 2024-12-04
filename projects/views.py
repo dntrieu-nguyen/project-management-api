@@ -6,18 +6,19 @@ from rest_framework.decorators import api_view
 from drf_yasg.utils import swagger_auto_schema
 from app.models import Project, User
 from middlewares import auth_middleware
-from projects.serializers import AddOrDeleteUserToProjectSerializers, CreateProjectSerializers, ProjectFilter, ProjectSerializer
+from projects.serializers import AddOrDeleteUserToProjectSerializers, CreateProjectSerializers, DeleteProjectErrorResponseSerializer, DeleteProjectSuccessResponseSerializer, ProjectFilter, ProjectSerializer, RestoreProjectErrorResponseSerializer, RestoreProjectSuccessResponseSerializer
 from utils.pagination import Pagination
 from utils.response import failure_response, success_response
 from uuid import UUID
 from django.db.models import Q
+from drf_yasg import openapi
 # Create new project
 @swagger_auto_schema(
     method='POST',
     operation_description="Create a project",
     tags=["Projects"],
     request_body=CreateProjectSerializers,
-    security=[]
+    security=[{'Bearer': []}]
 )
 @api_view(['POST'])
 @auth_middleware
@@ -100,7 +101,7 @@ def create_project(request):
     method='GET',
     operation_description="Get all projects by admin",
     tags=["Projects"],
-    security=[]
+    security=[{'Bearer': []}]
 )
 @api_view(['GET'])
 @auth_middleware
@@ -134,7 +135,7 @@ def get_all_projects_by_admin(request):
     method='GET',
     operation_description="Get project with filter by owner",
     tags=["Projects"],
-    security=[]
+    security=[{'Bearer': []}]
 )
 @api_view(['GET'])
 @auth_middleware
@@ -170,7 +171,7 @@ def get_project_by_filter(request):
     operation_description="Add user to project",
     tags=["Projects"],
     request_body=AddOrDeleteUserToProjectSerializers,
-    security=[]
+    security=[{'Bearer': []}]
 )
 @api_view(['POST'])
 @auth_middleware
@@ -252,7 +253,7 @@ def add_user_to_project(request):
     operation_description="Delete user from project",
     request_body=AddOrDeleteUserToProjectSerializers,
     tags=["Projects"],
-    security=[]
+    security=[{'Bearer': []}]
 )
 @api_view(['DELETE'])
 @auth_middleware
@@ -310,7 +311,28 @@ def delete_user_from_project(request):
             data=str(e),
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
-    
+# delete projects
+@swagger_auto_schema(
+    method='DELETE',
+    operation_description="Delete a project by owner or admin",
+    tags=["Projects"],
+    security=[{'Bearer': []}],
+    manual_parameters=[
+        openapi.Parameter(
+            'project_id',
+            openapi.IN_QUERY,
+            description="ID của dự án cần xoá",
+            type=openapi.TYPE_STRING,
+            required=True
+        ),
+    ],
+    responses={
+        200: DeleteProjectSuccessResponseSerializer,
+        400: DeleteProjectErrorResponseSerializer,
+        406: "You have no permission for this action",
+        500: "An unexpected error occurred"
+    }
+)
 @api_view(['DELETE'])
 @auth_middleware
 def delete_project_by_owner_or_admin(request):
@@ -372,6 +394,28 @@ def delete_project_by_owner_or_admin(request):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
+# restore project
+@swagger_auto_schema(
+    method='POST',
+    operation_description="Restore project",
+    tags=["Projects"],
+    security=[{'Bearer': []}],
+    manual_parameters=[
+        openapi.Parameter(
+            'project_id',
+            openapi.IN_QUERY,
+            description="ID của dự án cần khôi phục",
+            type=openapi.TYPE_STRING,
+            required=True
+        ),
+    ],
+    responses={
+        200: RestoreProjectSuccessResponseSerializer,
+        400: RestoreProjectErrorResponseSerializer,
+        403: "You don't have permissions for this action",
+        500: "An unexpected error occurred",
+    }
+)
 @api_view(['POST'])
 @auth_middleware
 def restore_project(request):
