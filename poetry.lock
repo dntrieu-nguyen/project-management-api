@@ -1963,6 +1963,20 @@ files = [
 ]
 
 [[package]]
+name = "whitenoise"
+version = "6.8.2"
+description = "Radically simplified static file serving for WSGI applications"
+optional = false
+python-versions = ">=3.9"
+files = [
+    {file = "whitenoise-6.8.2-py3-none-any.whl", hash = "sha256:df12dce147a043d1956d81d288c6f0044147c6d2ab9726e5772ac50fb45d2280"},
+    {file = "whitenoise-6.8.2.tar.gz", hash = "sha256:486bd7267a375fa9650b136daaec156ac572971acc8bf99add90817a530dd1d4"},
+]
+
+[package.extras]
+brotli = ["brotli"]
+
+[[package]]
 name = "zope-interface"
 version = "7.2"
 description = "Interfaces for Python"
@@ -2019,4 +2033,4 @@ testing = ["coverage[toml]", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "4d26a35c69b4d693171adfb7a114cbbc7dae0e665f3cc514554b5fef4bdda393"
+content-hash = "180cc45f31d3a4f7df72c4207448773c7f71d584402ce0fc77bf05ff615c9dbe"

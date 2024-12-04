@@ -71,3 +71,45 @@ def delete_user_by_admin(request):
 
     return success_response(message='deleted successfully')
 
+@api_view(['POST'])
+@auth_middleware
+def restore_user_by_admin(request):
+    try:
+        current_user = request.user
+        user_id = request.query_params.get("user_id")
+        # check valid user_id
+        if not bool(user_id):
+            return failure_response(
+                message="Validtions Errors",
+                data={
+                    "user_id":"This field is required"
+                }
+            )
+        # check user permission
+        if not current_user["role"]:
+            return failure_response(
+                message="You dont have permission for this action"
+            )
+        
+        user = User.objects.filter(id = UUID(user_id)).first()
+        # check existance user
+        if not user:
+            return failure_response(
+                message="User not found",
+                status_code= status.HTTP_403_FORBIDDEN
+            )
+        # restore user
+        user.restore()
+        
+        return success_response(
+            message="restore user successfully",
+            data= {
+                "user_restored":user_id
+            }
+        )
+    except Exception as e:
+         return failure_response(
+            message="An unexpected error occurred",
+            data=str(e),
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
