@@ -16,7 +16,7 @@ from utils.response import failure_response, success_response
     method='GET',
     operation_description="Get all users by admin",
     tags=["Users"],
-    security=[]
+    security=[{'Bearer': []}]
 )
 @api_view(['GET'])
 @auth_middleware
@@ -45,6 +45,12 @@ def get_all_user_by_admin(request):
     return success_response(data=data, paginator=paginator)
 
 # block user by admin
+@swagger_auto_schema(
+    method='PUT',
+    operation_description="delete users by admin",
+    tags=["Users"],
+    security=[{'Bearer': []}]
+)
 @api_view(['PUT'])
 @auth_middleware
 def delete_user_by_admin(request):
@@ -71,6 +77,13 @@ def delete_user_by_admin(request):
 
     return success_response(message='deleted successfully')
 
+
+@swagger_auto_schema(
+    method='POST',
+    operation_description="Restore users by admin",
+    tags=["Users"],
+    security=[{'Bearer': []}]
+)
 @api_view(['POST'])
 @auth_middleware
 def restore_user_by_admin(request):
