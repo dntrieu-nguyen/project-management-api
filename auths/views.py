@@ -39,7 +39,10 @@ def login(request, *args, **kwargs):
     serializer = AuthSerializer(data=request.data)
 
     if not serializer.is_valid():
-        raise ValidationError(serializer.errors)
+        return failure_response(
+            message="validations error",
+            data = serializer.errors
+        )
 
     email = serializer.validated_data['email']
     password = serializer.validated_data['password']
@@ -64,9 +67,9 @@ def login(request, *args, **kwargs):
 
         profile = UserDataSerializer(user).data
         set_cache(f"access_token:{access_token}", access_token, 6000)
-        return success_response(data={'access_token': access_token, 'refresh_token': refresh_token, 'data': profile}, status_code=200)
+        return success_response(data={'access_token': access_token, 'refresh_token': refresh_token, 'data': profile})
     except User.DoesNotExist:
-        return success_response(data={"message": "Not found user"}, status_code=status.HTTP_404_NOT_FOUND)
+        return failure_response(message= "Not found user", status_code=status.HTTP_404_NOT_FOUND)
 
 
 @swagger_auto_schema(
