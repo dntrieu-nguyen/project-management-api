@@ -1,0 +1,12 @@
+services:
+   - type: web
+     name: project-management-api
+     env: python
+     buildCommand: 'poetry install'
+     startCommand: 'poetry run daphne -u /tmp/daphne.sock core.asgi:application'
+
+   - type: web
+     name: gunicorn-worker
+     env: python
+     buildCommand: 'poetry install'
+     startCommand: 'poetry run gunicorn -w 4 core.wsgi:application'
