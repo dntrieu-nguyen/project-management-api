@@ -1,6 +1,7 @@
-from django.urls import path
-from chat.consumers import ChatConsumer
+# app/routing.py
+from django.urls import re_path
+from .consumers import ChatConsumer  # Đảm bảo rằng đường dẫn này đúng
 
 websocket_urlpatterns = [
-    path("ws/chat/<str:room_name>/", ChatConsumer.as_asgi()),
+    re_path(r'ws/chat/(?P<room_name>\w+)/$', ChatConsumer.as_asgi()),
 ]

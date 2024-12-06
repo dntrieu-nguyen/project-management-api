@@ -60,11 +60,20 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 await self.handle_send_message(data)
             elif action == "load_messages":
                 await self.handle_load_messages(data)
+            else:
+                await self.send(text_data=json.dumps({
+                    "error": "Invalid action"
+                }))
 
+        except json.JSONDecodeError:
+            logger.error("Invalid JSON format received.")
+            await self.send(text_data=json.dumps({
+                "error": "Invalid JSON format"
+            }))
         except Exception as e:
             logger.error(f"Error in receive method: {e}")
             await self.send(text_data=json.dumps({
-                "error": "Invalid data format or internal error"
+                "error": "Internal error occurred"
             }))
 
     async def handle_send_message(self, data):
@@ -75,7 +84,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             # Save to db
             message = await sync_to_async(self.save_message)(self.room_name, sender_id, content)
 
-            # send message to all members in group
+            # Send message to all members in group
             await self.channel_layer.group_send(
                 self.room_group_name,
                 {
@@ -90,13 +99,16 @@ class ChatConsumer(AsyncWebsocketConsumer):
             )
         except Exception as e:
             logger.error(f"Error in handle_send_message: {e}")
+            await self.send(text_data=json.dumps({
+                "error": "Failed to send message"
+            }))
 
     async def handle_load_messages(self, data):
         try:
             offset = data.get("offset", 0)
             limit = data.get("limit", 20)
 
-            # get message from db
+            # Get messages from db
             messages = await sync_to_async(self.get_messages)(self.room_name, offset, limit)
 
             # Send messages to client
@@ -106,6 +118,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
             }))
         except Exception as e:
             logger.error(f"Error in handle_load_messages: {e}")
+            await self.send(text_data=json.dumps({
+                "error": "Failed to load messages"
+            }))
 
     async def chat_message(self, event):
         try:
@@ -119,18 +134,20 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     async def add_user_to_room(self, user_id):
         try:
-            # get user from db
+            # Get user from db
             user = await database_sync_to_async(User.objects.get)(id=user_id)
 
-            # save user to room
-            if user not in await database_sync_to_async(lambda: list(self.room.members.all()))():
+            # Check if user is already a member of the room
+            user_in_room = await database_sync_to_async(self.room.members.filter)(id=user.id).exists()
+            if not user_in_room:
                 await database_sync_to_async(self.room.members.add)(user)
                 await database_sync_to_async(self.room.save)()
-            
+
             logger.info(f"User {user_id} added to room {self.room_name}")
-            
+
         except Exception as e:
             logger.error(f"Error in add_user_to_room: {e}")
+
 
     """
     ###########################################
@@ -148,7 +165,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
         try:
             room = Room.objects.get(name=room_name)
         except Room.DoesNotExist:
-            return []
+            logger.error(f"Room {room_name} does not exist.")
+            return []  # Return an empty list if room does not exist
 
         messages = Message.objects.filter(room=room).order_by('-created_at')[offset:offset + limit]
         return [
