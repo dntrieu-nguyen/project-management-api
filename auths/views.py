@@ -16,6 +16,7 @@ from datetime import datetime, timedelta, timezone
 from utils.send_mail import send_email
 import random
 from django.template.loader import render_to_string
+from django_ratelimit.decorators import ratelimit
 
 
 @swagger_auto_schema(
@@ -33,43 +34,70 @@ from django.template.loader import render_to_string
     },
     security=[]
 )
+@ratelimit(key='ip', rate="1/m", block=False)
 @api_view(['POST'])
 def login(request, *args, **kwargs):
-
     serializer = AuthSerializer(data=request.data)
 
     if not serializer.is_valid():
         return failure_response(
-            message="validations error",
-            data = serializer.errors
+            message="Validation errors",
+            data=serializer.errors,
+            status_code=status.HTTP_400_BAD_REQUEST
         )
 
     email = serializer.validated_data['email']
     password = serializer.validated_data['password']
 
     try:
+        # Kiểm tra user tồn tại
         user = User.objects.get(email=email)
-        if not User:
-            return failure_response(message="Not found user", status_code=status.HTTP_404_NOT_FOUND)
-        if user.check_password(password) == False:
-            return failure_response(message="Password is incorrect", status_code=status.HTTP_404_NOT_FOUND)
 
+        # Kiểm tra mật khẩu
+        if not user.check_password(password):
+            return failure_response(
+                message="Password is incorrect",
+                status_code=status.HTTP_401_UNAUTHORIZED
+            )
+
+        # Tạo token và cookie
         user_data = UserSerializers(user).data
-
-        access_token = generate_access_token(
-            user_data['id'], user_data['is_staff'])
+        access_token = generate_access_token(user_data['id'], user_data['is_staff'])
         refresh_token = generate_refresh_token(user_data['id'])
-        expires_at = datetime.now(timezone.utc) + timedelta(days=30)
+        expires_at =  datetime.now(timezone.utc) + timedelta(days=30)
 
-        new_refresh_token = RefreshToken.objects.create(
-            user=user, expires_at=expires_at, token=refresh_token)
-        new_refresh_token.save()
+        # Lưu Refresh Token
+        RefreshToken.objects.create(user=user, expires_at=expires_at, token=refresh_token)
 
+        # Dữ liệu phản hồi
         profile = UserDataSerializer(user).data
         set_cache(f"access_token:{access_token}", access_token, 6000)
-        return success_response(data={'access_token': access_token, 'refresh_token': refresh_token, 'data': profile})
+        
+        response = success_response(
+            data={
+                'access_token': access_token,
+                'refresh_token': refresh_token,
+                'data': profile
+            },
+            status_code=status.HTTP_200_OK
+        )
+
+        # Cài đặt cookie
+        response.set_cookie(
+            key="refresh_token_server",
+            value=str(refresh_token),
+            httponly=True,
+            secure=True,  
+            max_age=30*24*60*60,  
+        )
+
+        return response
+
     except User.DoesNotExist:
-        return failure_response(message= "Not found user", status_code=status.HTTP_404_NOT_FOUND)
+        return failure_response(
+            message="User not found",
+            status_code=status.HTTP_404_NOT_FOUND
+        )
 
 
 @swagger_auto_schema(

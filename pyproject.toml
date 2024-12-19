@@ -12,7 +12,7 @@ markdown = "^3.7"
 django-filter = "^24.3"
 mysqlclient = "^2.2.6"
 django-guardian = "^2.4.0"
-pillow = "^11.0.0"
+pillow = "10.1.0"
 firebase-admin = "^6.6.0"
 django-redis = "^5.4.0"
 django-cors-headers = "^4.6.0"
@@ -26,6 +26,7 @@ daphne = "^4.1.2"
 twisted = {extras = ["http2", "tls"], version = "^24.10.0"}
 gunicorn = "^23.0.0"
 whitenoise = "^6.8.2"
+django-ratelimit = "^4.1.0"
 
 [build-system]
 requires = ["poetry-core"]
