@@ -1,0 +1,1 @@
+web: poetry run daphne -u /tmp/daphne.sock core.asgi:application

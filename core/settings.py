@@ -58,7 +58,7 @@ LOGGING = {
     },
 }
 # Allowed Hosts
-ALLOWED_HOSTS = ['project-management-api-94wr.onrender.com', '127.0.0.1']
+ALLOWED_HOSTS = ['project-management-api-94wr.onrender.com', '127.0.0.1','localhost']
 
 # Security
 # SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
@@ -113,10 +113,13 @@ INSTALLED_APPS = [
     'drf_yasg',
     'django_filters',
     # app
-    'user.apps.UserConfig',
-    'accounts.apps.AccountsConfig',
-    'app.apps.AppConfig',
-    'chat.apps.ChatConfig'
+    'user',
+    'accounts',
+    'app',
+    'chat',
+    'tasks',
+    'comments',
+    'projects'
 ]
 
 REST_FRAMEWORK = {
@@ -130,7 +133,14 @@ REST_FRAMEWORK = {
     ),
     'DEFAULT_FILTER_BACKENDS': ['django_filters.rest_framework.DjangoFilterBackend'],
 
+    'DEFAULT_THROTTLE_RATES': {
+        'user': '10/minute', 
+        'anon': '3/minute',  
+    },
+
 }
+
+RATELIMIT_USE_X_FORWARDED_FOR = True
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',

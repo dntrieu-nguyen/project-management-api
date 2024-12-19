@@ -5,10 +5,12 @@ from asgiref.sync import sync_to_async
 from channels.db import database_sync_to_async
 from app.models import Room, Message, User
 import logging
+from middlewares import auth_middleware
 
 logger = logging.getLogger(__name__)
 
 class ChatConsumer(AsyncWebsocketConsumer):
+    @auth_middleware
     async def connect(self):
         """
         ###########################################
@@ -18,10 +20,14 @@ class ChatConsumer(AsyncWebsocketConsumer):
         try:
             # Get token or sender_id from query string
             sender_id = self.scope['query_string'].decode().split('id=')[1]
+
+            # user = await database_sync_to_async(User.objects.get)(id=sender_id)
+            # print(f"check >>> {user}")
+
+            # check sender_id
             
             self.room_name = self.scope['url_route']['kwargs']['room_name']
             self.room_group_name = f"chat_{self.room_name}"
-
             # Create or fetch room
             self.room = await database_sync_to_async(self.get_or_create_room)(self.room_name)
 
@@ -61,9 +67,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             elif action == "load_messages":
                 await self.handle_load_messages(data)
             else:
-                await self.send(text_data=json.dumps({
-                    "error": "Invalid action"
-                }))
+                await self.send_error("invalid action")
 
         except json.JSONDecodeError:
             logger.error("Invalid JSON format received.")
@@ -148,6 +152,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
         except Exception as e:
             logger.error(f"Error in add_user_to_room: {e}")
 
+    async def send_error(self, error_message):
+        await self.send(
+            text_data=json.dumps({
+                "error": error_message
+            }))
 
     """
     ###########################################

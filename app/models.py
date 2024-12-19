@@ -104,30 +104,12 @@ class Task(SoftDeleteMixin):
 
     def __str__(self):
         return self.title
-
-
-class Comment(SoftDeleteMixin):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    content = models.TextField()
-    author = models.ForeignKey(
-        User, on_delete=models.SET_NULL, blank=True, null=True, related_name="comments")
-    task = models.ForeignKey(
-        Task, on_delete=models.SET_NULL, blank=True, null=True, related_name="comments")
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        db_table = 'comment'
-
-    def __str__(self):
-        return f"Comment by {self.author.username} on {self.task.title}"
-
-
 class Room(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255, unique=True)
     # Quan hệ nhiều-nhiều với User
     members = models.ManyToManyField(User, related_name="chat_rooms")
+    owner = models.ForeignKey(User, on_delete=models.SET_NULL, blank=True, null = True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -168,6 +150,8 @@ class RefreshToken(SoftDeleteMixin):
         related_name="refresh_tokens"  # Đổi tên related_name để phù hợp với quan hệ 1-n
     )
     token = models.TextField()
+    agent = models.CharField(max_length=255, blank=True, null=True)
+    location = models.CharField(max_length=255, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     expires_at = models.DateTimeField()
@@ -177,3 +161,15 @@ class RefreshToken(SoftDeleteMixin):
 
     def __str__(self):
         return f"RefreshToken for {self.user.username}"
+
+class ProjectDocument(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4)
+    project_id = models.ForeignKey(Project, on_delete=models.CASCADE)
+    name = models.CharField(max_length=255, blank=True, null=True)
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, blank=True, null=True)
+    content = models.TextField()
+    description = models.TextField(max_length=300, blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    
