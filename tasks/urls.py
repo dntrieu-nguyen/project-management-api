@@ -7,4 +7,7 @@ urlpatterns = [
     path('create', create_task),
     path('update', update_task),
     path('delete', delete_task),
+    path('send-invite', send_invite_join_task),
+    path('accept', accept_invitation),
+    path('decline', decline_invitation),
 ]

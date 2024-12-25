@@ -37,6 +37,12 @@ class CreateTaskSerializer(serializers.Serializer):
     status = serializers.CharField(
         required=True,
     )
+    start_date = serializers.DateTimeField(
+        required=True,
+    )
+    end_date = serializers.DateTimeField(
+        required=True,
+    )
 
     def validate_status(self, value):
 
@@ -48,6 +54,14 @@ class CreateTaskSerializer(serializers.Serializer):
     def validate_members(self, value):
         unique_members = list(set(value))
         return unique_members
+    def validate_date(self, value):
+        if value < datetime.datetime.now():
+            raise serializers.ValidationError("Date must be greater than current date")
+        return value
+    def validate_start_end_date(self, value):
+        if value['start_date'] > value['end_date']:
+            raise serializers.ValidationError("Start date must be less than end date")
+        return value
 
 
 class UpdateTaskSerializer(serializers.Serializer):
@@ -100,7 +114,9 @@ class TaskSerializer(ModelSerializer):
     class Meta:
         model = Task
         fields = ['id', 'title', 'description', 'created_at',
-                  'updated_at', 'is_deleted', 'status', 'priority', 'due_date', 'assignees']
+                  'updated_at', 'is_deleted', 'status', 'priority', 
+                  'due_date', 'assignees', 'start_date', 'end_date']
+        
         read_only_fields = ['id']
 
 
@@ -110,3 +126,11 @@ class ProjectSerializer(ModelSerializer):
     class Meta:
         model = Project
         fields = ['id', 'name', 'tasks']
+
+class SendNotificationSerializers(serializers.Serializer):
+    receiver_id = serializers.CharField()
+    task_id = serializers.CharField()
+    project_id = serializers.CharField()
+
+class ResponseSerializers(serializers.Serializer):
+    invitation_id = serializers.CharField()

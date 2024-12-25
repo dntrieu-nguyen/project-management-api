@@ -6,7 +6,7 @@ from rest_framework.decorators import api_view
 from drf_yasg.utils import swagger_auto_schema
 from app.models import Project, User
 from middlewares import auth_middleware
-from projects.serializers import AddOrDeleteUserToProjectSerializers, CreateProjectSerializers, DeleteProjectErrorResponseSerializer, DeleteProjectSuccessResponseSerializer, ProjectFilter, ProjectSerializer, RestoreProjectErrorResponseSerializer, RestoreProjectSuccessResponseSerializer
+from projects.serializers import AddOrDeleteUserToProjectSerializers, CreateProjectSerializers, DeleteProjectErrorResponseSerializer, DeleteProjectSuccessResponseSerializer, ListProjectSerializer, ProjectFilter, ProjectSerializer, RestoreProjectErrorResponseSerializer, RestoreProjectSuccessResponseSerializer
 from utils.pagination import Pagination
 from utils.response import failure_response, success_response
 from uuid import UUID
@@ -446,6 +446,29 @@ def restore_project(request):
         )
     except Exception as e:
         return failure_response(
+            message="An unexpected error occurred",
+            data=str(e),
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+@api_view(['GET'])
+@auth_middleware
+def get_list_project(request):
+    try:
+      user_id = request.user['id']
+      query_set = Project.objects.filter(
+          (Q( owner = user_id) | Q(members__id = user_id))
+        )
+      paginator = Pagination()
+      paginated_project = paginator.paginate_queryset(query_set, request)
+      data = ListProjectSerializer(paginated_project, many=True).data
+      return success_response(
+          paginator = paginator,
+          data = data
+      )
+      
+    except Exception as e:
+      return failure_response(
             message="An unexpected error occurred",
             data=str(e),
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR

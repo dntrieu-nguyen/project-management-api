@@ -34,6 +34,7 @@ def auth_middleware(view_func):
             request.user = {
                 "id": decoded.get("id"),
                 "role": decoded.get("role"),
+                "access_token": token
             }
 
             return view_func(request, *args, **kwargs)

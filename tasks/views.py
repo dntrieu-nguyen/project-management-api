@@ -1,10 +1,12 @@
+import datetime
+import json
 from rest_framework.decorators import api_view
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from utils.response import success_response, failure_response
 from middlewares import auth_middleware, admin_middleware
 from rest_framework import status
-from .serializers import GetTasksSerializer, CreateTaskSerializer, UpdateTaskSerializer
+from .serializers import GetTasksSerializer, CreateTaskSerializer, ResponseSerializers, SendNotificationSerializers, UpdateTaskSerializer
 from rest_framework.exceptions import ValidationError
 from app.models import Project, Task, User
 from rest_framework.pagination import PageNumberPagination
@@ -12,6 +14,8 @@ from .serializers import TaskSerializer, ProjectSerializer
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 import uuid
+from firebase.firebase_config import db
+from django.db.models import Q
 
 
 @swagger_auto_schema(
@@ -271,3 +275,115 @@ def delete_task(request, *args, **kwargs):
     task.save()
 
     return success_response(status_code=200, data={"message": "Delete task successfully"})
+
+@api_view(['POST'])
+@auth_middleware
+def send_invite_join_task(request):
+    try:
+      user_id = request.user['id']
+      ref = db.reference(f"invitedNotifications/{user_id}")
+
+      user = User.objects.get(id=user_id)
+
+      req_body = SendNotificationSerializers(data=request.data)
+      if not req_body.is_valid():
+        return failure_response(
+              message="Validation errors",
+              data = req_body.errors
+          )
+      validated_data = req_body.validated_data
+
+      task = Task.objects.get(id = uuid.UUID(validated_data['task_id']))
+
+        # check task existance
+      if task is None:
+          return failure_response(
+              message="task not found",
+             
+          )
+      new_data = {
+          "task": str(task.id),
+          "project": str(validated_data['project_id']),
+          "status": "pending",
+          "from": user.email,
+          "message": f"You have a invitation to join {task.title} from {user.email}",
+          "created_at" : datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+      }
+      snapshot = ref.push(new_data)
+      return success_response(
+          message="Send invitation successfully",
+      )
+    except Exception as e:
+      return failure_response(
+            message="An unexpected error occurred",
+            data=str(e),
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+@api_view(['POST'])
+@auth_middleware
+def accept_invitation(request):
+    try:
+      user_id = request.user['id']
+      ref = db.reference(f"invitedNotifications/{user_id}")
+
+      req_body = ResponseSerializers(data= request.data)
+      if not req_body.is_valid():
+          return failure_response(
+              message="Validation Errors",
+              data= req_body.errors
+          )
+      
+      valid_data = req_body.validated_data
+      
+      invite_info = json.dumps(ref.get(f"invitedNotifications/{user_id}/{valid_data["invitation_id"]}"))
+      print("check invite", invite_info)
+      if not invite_info:
+          return failure_response(
+              message="Invite message not found"
+          )
+      
+    except Exception as e:
+      return failure_response(
+            message="An unexpected error occurred",
+            data=str(e),
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+@api_view(['POST'])
+@auth_middleware
+def decline_invitation(request):
+    try:
+        user_id = request.user.get('id')
+        ref = db.reference(f"invitedNotifications/{user_id}")
+
+        req_body = ResponseSerializers(data=request.data)
+        if not req_body.is_valid():
+            return failure_response(
+                message="Validation Errors",
+                data=req_body.errors,
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
+
+        valid_data = req_body.validated_data
+
+        invitation_id = valid_data.get('invitation_id')
+        if not invitation_id:
+            return failure_response(
+                message="Invitation ID is required",
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
+
+        child_ref = ref.child(invitation_id)
+        child_ref.delete()
+
+        return success_response(
+            message="Invitation declined successfully"
+        )
+
+    except Exception as e:
+        return failure_response(
+            message="An unexpected error occurred",
+            data=str(e),
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
