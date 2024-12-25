@@ -62,3 +62,11 @@ class UpdateUserSerializer(serializers.Serializer):
 
     class Meta:
         model = User
+
+class ListUserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['id', 'email']
+
+class ListUserInProjectSerializers(serializers.Serializer):
+    project_id = serializers.CharField()

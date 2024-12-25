@@ -7,9 +7,9 @@ from rest_framework import status
 from utils.jwt import decode_token, generate_access_token, generate_refresh_token
 from app.models import User, RefreshToken
 from user.serializers import UserSerializers
-from auths.serializers import AuthSerializer, UserDataSerializer, RegisterSerializer, UpdateUserSerializer, ChangePasswordSerializer, RefreshTokenSerializer, ForgotPasswordSerializer, ResetPasswordSerializer
+from auths.serializers import AuthSerializer, LogoutSerializer, UserDataSerializer, RegisterSerializer, UpdateUserSerializer, ChangePasswordSerializer, RefreshTokenSerializer, ForgotPasswordSerializer, ResetPasswordSerializer
 from middlewares import auth_middleware
-from utils.redis import set_cache, get_cache
+from utils.redis import remove_cache, set_cache, get_cache
 from utils.response import success_response, failure_response
 import jwt
 from datetime import datetime, timedelta, timezone
@@ -360,3 +360,32 @@ def reset_password(request, *args, **kwargs):
     user.save()
     user_data = UserDataSerializer(user).data
     return success_response(data=user_data)
+
+@api_view(['POST'])
+@auth_middleware
+def logout(request):
+    try:
+      access_token = request.user['access_token']
+
+      req_body = LogoutSerializer(data=request.data)
+      if not req_body.is_valid():
+          return failure_response(
+              message="Validation Errors",
+              data = req_body.errors
+          )
+      valid_data = req_body.validated_data
+
+    # Remove token
+      remove_cache(f"access_token:{access_token}")
+      refresh_token = RefreshToken.objects.get(token = valid_data['refresh_token'])
+      refresh_token.delete()
+    
+      return success_response(
+          message="Logout successfully"
+      )
+    except Exception as e:
+      return failure_response(
+            message="An unexpected error occurred",
+            data=str(e),
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+      )

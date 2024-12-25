@@ -1,8 +1,6 @@
 
 from app.models import User
 from rest_framework import serializers
-import re
-
 
 class RegisterSerializer(serializers.Serializer):
     email = serializers.EmailField(required=True)
@@ -70,3 +68,6 @@ class ResetPasswordSerializer(serializers.Serializer):
         min_length=1, max_length=5, required=True)
     new_password = serializers.CharField(
         write_only=True, required=True, min_length=6)
+
+class LogoutSerializer(serializers.Serializer):
+    refresh_token = serializers.CharField()

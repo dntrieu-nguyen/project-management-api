@@ -96,6 +96,8 @@ class Task(SoftDeleteMixin):
         Project, on_delete=models.SET_NULL, blank=True, null=True, related_name="tasks")
     assignees = models.ManyToManyField(User, related_name="tasks")
     due_date = models.DateTimeField(null=True, blank=True)
+    start_date = models.DateTimeField(null=True, blank=True)
+    end_date = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -147,7 +149,7 @@ class RefreshToken(SoftDeleteMixin):
         on_delete=models.SET_NULL,
         blank=True,
         null=True,
-        related_name="refresh_tokens"  # Đổi tên related_name để phù hợp với quan hệ 1-n
+        related_name="refresh_tokens"  
     )
     token = models.TextField()
     agent = models.CharField(max_length=255, blank=True, null=True)
