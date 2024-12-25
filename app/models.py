@@ -65,6 +65,8 @@ class Project(SoftDeleteMixin):
     members = models.ManyToManyField(User, related_name="projects")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    start_date = models.DateTimeField(null=True)
+    end_date = models.DateTimeField(null=True)
 
     class Meta:
         db_table = 'project'

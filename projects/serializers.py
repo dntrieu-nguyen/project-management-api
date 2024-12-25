@@ -15,6 +15,18 @@ class CreateProjectSerializers(serializers.Serializer):
         allow_blank=True  
     )
     members = serializers.CharField(required=False)
+    start_date = serializers.DateTimeField()
+    end_date = serializers.DateTimeField()
+    def validate(self, data):
+        start_date = data.get("start_date")
+        end_date = data.get("end_date")
+
+        if start_date and end_date and start_date > end_date:
+            raise serializers.ValidationError({
+                "end_date": "End date must be later than start date."
+            })
+
+        return data
 
 class UpdateProjectSerializers(serializers.Serializer):
     name = serializers.CharField(
@@ -28,6 +40,19 @@ class UpdateProjectSerializers(serializers.Serializer):
         allow_blank=True  
     )
     members = serializers.CharField(required=False)
+    start_date = serializers.DateTimeField()
+    end_date = serializers.DateTimeField()
+    def validate(self, data):
+        start_date = data.get("start_date")
+        end_date = data.get("end_date")
+
+        if start_date and end_date and start_date > end_date:
+            raise serializers.ValidationError({
+                "end_date": "End date must be later than start date."
+            })
+
+        return data
+
 
 class ProjectSerializer(serializers.ModelSerializer):
     class Meta:
@@ -43,6 +68,10 @@ class ProjectFilter(django_filters.FilterSet):
     created_at_end = django_filters.DateTimeFilter(field_name='created_at', lookup_expr='lte')
     updated_at_start = django_filters.DateTimeFilter(field_name='updated_at', lookup_expr='gte')
     updated_at_end = django_filters.DateTimeFilter(field_name='updated_at', lookup_expr='lte')
+    start_date_start = django_filters.DateTimeFilter(field_name='start_date', lookup_expr='gte')
+    start_date_end = django_filters.DateTimeFilter(field_name='start_date', lookup_expr='lte')
+    end_date_start = django_filters.DateTimeFilter(field_name='end_date', lookup_expr='gte')
+    end_date_end = django_filters.DateTimeFilter(field_name='end_date', lookup_expr='lte')
 
     class Meta:
         model = Project
@@ -54,7 +83,12 @@ class ProjectFilter(django_filters.FilterSet):
             'created_at_start', 
             'created_at_end', 
             'updated_at_start', 
-            'updated_at_end']
+            'updated_at_end',
+            'start_date_start',
+            'start_date_end',
+            'end_date_start',
+            'end_date_end',
+            ]
 
 class AddOrDeleteUserToProjectSerializers(serializers.Serializer):
     project_id = serializers.CharField()
