@@ -27,6 +27,7 @@ twisted = {extras = ["http2", "tls"], version = "^24.10.0"}
 gunicorn = "^23.0.0"
 whitenoise = "^6.8.2"
 django-ratelimit = "^4.1.0"
+cloudinary = "^1.41.0"
 
 [build-system]
 requires = ["poetry-core"]

@@ -80,7 +80,9 @@ def create_project(request):
     project = Project.objects.create(
         name=validated_data['name'],
         description=validated_data.get('description', ''),
-        owner=owner
+        owner=owner,
+        start_date = validated_data['start_date'],
+        end_date = validated_data['end_date']
     )
 
     if bool(members_string):
