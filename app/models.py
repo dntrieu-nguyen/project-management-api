@@ -43,6 +43,7 @@ class User(AbstractUser, SoftDeleteMixin):
         max_length=255, blank=True, null=True)
     reset_password_expires_at = models.DateTimeField(blank=True, null=True)
     online_status = models.BooleanField(default=False)
+    avatar = models.URLField(max_length=255, blank=True, null=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -52,7 +53,9 @@ class Project(SoftDeleteMixin):
     STATUS_CHOICES = [
         ('pending', 'Pending'),
         ('in-progress', 'In Progress'),
-        ('completed', 'Completed')
+        ('completed', 'Completed'),
+        ('open', 'Open'),
+        ('close', 'Close')
     ]
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255)
@@ -79,7 +82,10 @@ class Task(SoftDeleteMixin):
     STATUS_CHOICES = [
         ('pending', 'Pending'),
         ('in-progress', 'In Progress'),
-        ('completed', 'Completed')
+        ('completed', 'Completed'),
+        ('open','Open'),
+        ('close','Close'),
+        ('cancel','Cancel')
     ]
 
     PRIORITY_CHOICES = [
@@ -102,6 +108,8 @@ class Task(SoftDeleteMixin):
     end_date = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    estimate_hour = models.FloatField(null=True, blank=True)
+    actual_hour = models.FloatField(null=True, blank=True)
 
     class Meta:
         db_table = 'task'

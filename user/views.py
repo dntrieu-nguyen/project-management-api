@@ -5,7 +5,8 @@ from django.db.models import Q
 from app.models import Project, User
 from middlewares import auth_middleware
 from drf_yasg.utils import swagger_auto_schema
-from user.serializers import AllUserFilterSerializers, AllUserSerializers, ListUserInProjectSerializers, UpdateUserSerializer
+from user.serializers import AllUserFilterSerializers, AllUserSerializers, ListUserFilterSerializer, ListUserSerializer, UpdateUserSerializer
+from utils import pagination
 from utils.pagination import Pagination
 from utils.response import failure_response, success_response
 
@@ -133,31 +134,23 @@ def restore_user_by_admin(request):
 def get_list_user(request):
     try:
         user_id = request.user['id']
-        req_body = ListUserInProjectSerializers(data=request.data)
-        if not req_body.is_valid():
-            return failure_response(
-                message="Validation Error",
-                data= req_body.errors
-            )
-        valid_data = req_body.validated_data
-        project = Project.objects.filter(
-            Q(id = UUID(valid_data['project_id'])) &
-            (Q(owner = UUID(user_id)) | 
-            Q(members__id = UUID(user_id)))
-        )
-        
-        # get all user in project id
-        users = project.first().members.all()
-        # owner = project.first().owner
-        # get all user in project
-        data = {
-            # "owner": owner.email,
-            "members": ListUserInProjectSerializers(users, many=True).data
-        }
-        
+        user = User.objects.exclude(id = user_id)
+
+
+
+        # filter
+        query_filter = ListUserFilterSerializer(request.GET,queryset=user)
+        filter_list = query_filter.qs
+
+        paginator = Pagination()
+        paginated_list_user = paginator.paginate_queryset(filter_list,request)
+
+        data = ListUserSerializer(paginated_list_user, many=True).data
+
         return success_response(
             message="get list user successfully",
-            data = data
+            data = data,
+            paginator=paginator
         )
     except Exception as e:
       return failure_response(

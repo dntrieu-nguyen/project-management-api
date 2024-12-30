@@ -66,7 +66,7 @@ class UpdateUserSerializer(serializers.Serializer):
 class ListUserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'email']
+        fields = ['id', 'email', 'avatar']
 
-class ListUserInProjectSerializers(serializers.Serializer):
-    project_id = serializers.CharField()
+class ListUserFilterSerializer(django_filters.FilterSet):
+    email = django_filters.CharFilter(field_name="email", lookup_expr="icontains")

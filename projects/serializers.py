@@ -100,12 +100,12 @@ class ListUserInProjectSerializers(serializers.ModelSerializer):
         model = User
         fields = ['id', 'email']
 
-class ListTasksInProjectSerializers(serializers.ModelSerializer):
+class ListTaskInProjectSerializer(serializers.ModelSerializer):
     class Meta:
         model = Task
         fields = ['id', 'title', 'is_deleted']
 
-class ListDocumentInProjectSerializers(serializers.ModelSerializer):
+class ListDocumentInProjectSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProjectDocument
         fields = ['id', 'name', 'is_deleted']
@@ -117,16 +117,14 @@ class ListProjectSerializer(serializers.ModelSerializer):
     class Meta:
         model = Project
         fields = ['id', 'name', 'tasks', 'documents']
+
     def get_tasks(self, obj):
-        tasks = Task.objects.filter(
-            Q(project_id=obj.id) & Q(is_deleted=False)
-        )
-        return ListTasksInProjectSerializers(tasks, many=True).data
+        tasks = Task.objects.filter(project_id=obj.id)
+        return ListTaskInProjectSerializer(tasks, many=True).data
+
     def get_documents(self, obj):
-        documents = ProjectDocument.objects.filter(
-            Q(project_id=obj.id) & Q(is_deleted=False)
-        )
-        return ListDocumentInProjectSerializers(documents, many=True).data
+        documents = ProjectDocument.objects.filter(project_id=obj.id)
+        return ListDocumentInProjectSerializer(documents, many=True).data
 """
 Serializers for swagger
 """
