@@ -62,17 +62,19 @@ def login(request, *args, **kwargs):
 
         # Tạo token và cookie
         user_data = UserSerializers(user).data
-        access_token = generate_access_token(user_data['id'], user_data['is_staff'])
+        access_token = generate_access_token(
+            user_data['id'], user_data['is_staff'])
         refresh_token = generate_refresh_token(user_data['id'])
-        expires_at =  datetime.now(timezone.utc) + timedelta(days=30)
+        expires_at = datetime.now(timezone.utc) + timedelta(days=30)
 
         # Lưu Refresh Token
-        RefreshToken.objects.create(user=user, expires_at=expires_at, token=refresh_token)
+        RefreshToken.objects.create(
+            user=user, expires_at=expires_at, token=refresh_token)
 
         # Dữ liệu phản hồi
         profile = UserDataSerializer(user).data
         set_cache(f"access_token:{access_token}", access_token, 6000)
-        
+
         response = success_response(
             data={
                 'access_token': access_token,
@@ -87,8 +89,8 @@ def login(request, *args, **kwargs):
             key="refresh_token_server",
             value=str(refresh_token),
             httponly=True,
-            secure=True,  
-            max_age=30*24*60*60,  
+            secure=True,
+            max_age=30*24*60*60,
         )
 
         return response
@@ -318,7 +320,7 @@ def forgot_password(request, *args, **kwargs):
 
     result = send_email(subject, txt_, from_email, recipient_list, html_)
 
-    return success_response(data={"message": 'Send mail successfully'})
+    return success_response(data={"message": 'Send mail successfully', 'email': email})
 
 
 @swagger_auto_schema(
@@ -361,31 +363,33 @@ def reset_password(request, *args, **kwargs):
     user_data = UserDataSerializer(user).data
     return success_response(data=user_data)
 
+
 @api_view(['POST'])
 @auth_middleware
 def logout(request):
     try:
-      access_token = request.user['access_token']
+        access_token = request.user['access_token']
 
-      req_body = LogoutSerializer(data=request.data)
-      if not req_body.is_valid():
-          return failure_response(
-              message="Validation Errors",
-              data = req_body.errors
-          )
-      valid_data = req_body.validated_data
+        req_body = LogoutSerializer(data=request.data)
+        if not req_body.is_valid():
+            return failure_response(
+                message="Validation Errors",
+                data=req_body.errors
+            )
+        valid_data = req_body.validated_data
 
     # Remove token
-      remove_cache(f"access_token:{access_token}")
-      refresh_token = RefreshToken.objects.get(token = valid_data['refresh_token'])
-      refresh_token.delete()
-    
-      return success_response(
-          message="Logout successfully"
-      )
+        remove_cache(f"access_token:{access_token}")
+        refresh_token = RefreshToken.objects.get(
+            token=valid_data['refresh_token'])
+        refresh_token.delete()
+
+        return success_response(
+            message="Logout successfully"
+        )
     except Exception as e:
-      return failure_response(
+        return failure_response(
             message="An unexpected error occurred",
             data=str(e),
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
-      )
+        )

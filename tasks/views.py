@@ -336,7 +336,7 @@ def accept_invitation(request):
       
       valid_data = req_body.validated_data
       
-      invite_info = json.dumps(ref.get(f"invitedNotifications/{user_id}/{valid_data["invitation_id"]}"))
+      invite_info = json.dumps(ref.get(f"invitedNotifications/{user_id}/{valid_data['invitation_id']}"))
       print("check invite", invite_info)
       if not invite_info:
           return failure_response(
