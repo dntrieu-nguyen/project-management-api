@@ -6,12 +6,13 @@ from rest_framework.decorators import api_view
 from drf_yasg.utils import swagger_auto_schema
 from app.models import Project, User
 from middlewares import auth_middleware
-from projects.serializers import AddOrDeleteUserToProjectSerializers, CreateProjectSerializers, DeleteProjectErrorResponseSerializer, DeleteProjectSuccessResponseSerializer, ListProjectSerializer, ProjectFilter, ProjectSerializer, RestoreProjectErrorResponseSerializer, RestoreProjectSuccessResponseSerializer
+from projects.serializers import AddOrDeleteUserToProjectSerializers, CreateProjectSerializers, DeleteProjectErrorResponseSerializer, DeleteProjectSuccessResponseSerializer, ListProjectSerializer, ProjectFilter, ProjectSerializer, RequireBody, RestoreProjectErrorResponseSerializer, RestoreProjectSuccessResponseSerializer
 from utils.pagination import Pagination
 from utils.response import failure_response, success_response
 from uuid import UUID
 from django.db.models import Q
 from drf_yasg import openapi
+from firebase.firebase_config import db
 # Create new project
 @swagger_auto_schema(
     method='POST',
@@ -26,77 +27,99 @@ def create_project(request):
     """
     API Create a new project
     """
-    serializer = CreateProjectSerializers(data=request.data)
-
-    # Check validate
-    if not serializer.is_valid():
-        return failure_response(
-            message="Validation Errors",
-            data=serializer.errors,
-            status_code=status.HTTP_400_BAD_REQUEST
-        )
-
-    validated_data = serializer.validated_data
-
-    # Get owner
     try:
-        owner = User.objects.get(id=request.user['id'])
-    except User.DoesNotExist:
-        return failure_response(
-            message="Owner does not exist",
-            status_code=status.HTTP_404_NOT_FOUND
-        )
-    
-    # Check unique project name
-    if Project.objects.filter(name=validated_data['name'], owner=owner).exists():
-        return failure_response(
-            message="This project name already exists",
-            status_code=status.HTTP_400_BAD_REQUEST
-        )
-
-    # Get list of members (members is a string of comma-separated UUIDs)
-    members_string = validated_data.get('members', '')
-    member_ids = members_string.split(',') if members_string else []
-
-    # case member has user id:
-    if bool(members_string):
-         # Check if member IDs are unique
-        if len(member_ids) != len(set(member_ids)):
-            return failure_response(
-                message="Duplicate members found",
-                status_code=status.HTTP_400_BAD_REQUEST
-            )
-        # Get members from the database
-        members = User.objects.filter(id__in=member_ids)
+        user_id = request.user['id']
+        serializer = CreateProjectSerializers(data=request.data)
         
-        # Check if all members exist (including owner)
-        if len(members) != len(member_ids):
+
+
+        # Check validate
+        if not serializer.is_valid():
             return failure_response(
-                message="One or more members do not exist",
+                message="Validation Errors",
+                data=serializer.errors,
                 status_code=status.HTTP_400_BAD_REQUEST
             )
 
-    # Create project
-    project = Project.objects.create(
-        name=validated_data['name'],
-        description=validated_data.get('description', ''),
-        owner=owner,
-        start_date = validated_data['start_date'],
-        end_date = validated_data['end_date']
-    )
+        validated_data = serializer.validated_data
 
-    if bool(members_string):
-        # Add members to project (including owner)
-        project.members.set(members)
+        # Get owner
+        try:
+            owner = User.objects.get(id=request.user['id'])
+        except User.DoesNotExist:
+            return failure_response(
+                message="Owner does not exist",
+                status_code=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Check unique project name
+        if Project.objects.filter(name=validated_data['name'], owner=owner).exists():
+            return failure_response(
+                message="This project name already exists",
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
 
-    # Serialize the project data
-    project_data = ProjectSerializer(project).data
+        # Get list of members (members is a string of comma-separated UUIDs)
+        members_string = validated_data.get('members', '')
+        member_ids = members_string.split(',') if members_string else []
 
-    return success_response(
-        message="Create project successfully",
-        status_code=status.HTTP_201_CREATED,
-        data=project_data
-    )
+        # case member has user id:
+        if bool(members_string):
+            # Check if member IDs are unique
+            if len(member_ids) != len(set(member_ids)):
+                return failure_response(
+                    message="Duplicate members found",
+                    status_code=status.HTTP_400_BAD_REQUEST
+                )
+            # Get members from the database
+            members = User.objects.filter(id__in=member_ids)
+            
+            # Check if all members exist (including owner)
+            if len(members) != len(member_ids):
+                return failure_response(
+                    message="One or more members do not exist",
+                    status_code=status.HTTP_400_BAD_REQUEST
+                )
+
+        # Create project
+        project = Project.objects.create(
+            name=validated_data['name'],
+            description=validated_data.get('description', ''),
+            owner=owner,
+            start_date = validated_data['start_date'],
+            end_date = validated_data['end_date'],
+            status = validated_data['status']
+        )
+
+        if bool(members_string):
+            # Add members to project (including owner)
+            for user in member_ids:
+                new_data = {
+                    "project": str(project.id),
+                    "status": "pending",
+                    "from": owner.email,
+                    "type":"invite",
+                    "context":"project",
+                    "message": f"You have a invitation to join project {project.name} from {owner.email}",
+                    "created_at" : datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+                }
+                ref = db.reference(f"invitedNotifications/{user}")
+                ref.push(new_data)
+
+        # Serialize the project data
+        project_data = ProjectSerializer(project).data
+
+        return success_response(
+            message="Create project successfully",
+            status_code=status.HTTP_201_CREATED,
+            data=project_data
+        )
+    except Exception as e:
+      return failure_response(
+            message="An unexpected error occurred",
+            data=str(e),
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
 
 # Get all project by admin
 @swagger_auto_schema(
@@ -163,7 +186,7 @@ def get_project_by_filter(request):
     data = ProjectSerializer(paginated_projects, many=True).data
 
     return success_response(
-        message="Operator successfull",
+        message="Operator successfully",
         data= data, 
         paginator=paginator
         )
@@ -460,9 +483,10 @@ def get_list_project(request):
       user_id = request.user['id']
       query_set = Project.objects.filter(
           (Q( owner = user_id) | Q(members__id = user_id))
-        )
+        ).distinct()
       paginator = Pagination()
       paginated_project = paginator.paginate_queryset(query_set, request)
+
       data = ListProjectSerializer(paginated_project, many=True).data
       return success_response(
           paginator = paginator,
@@ -471,6 +495,146 @@ def get_list_project(request):
       
     except Exception as e:
       return failure_response(
+            message="An unexpected error occurred",
+            data=str(e),
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+@api_view(['POST'])
+@auth_middleware
+def accept_invite(request):
+    try:
+      user_id = request.user['id']
+      req_body = RequireBody(data=request.data)
+
+      if not req_body.is_valid():
+        return failure_response(
+            message="Validation erros",
+            data= req_body.errors
+        )
+      
+      valid_data = req_body.validated_data
+
+      project = Project.objects.filter(id=valid_data['project_id']).first()
+      user = User.objects.filter(id = user_id).first()
+
+      if not project:
+          return failure_response(
+              message="Project not found",
+              status_code= status.HTTP_404_NOT_FOUND
+          )
+      
+      if project.members.filter(id = user_id).exists():
+          return failure_response(
+              message="User is already a member of this project"
+          )
+      # add members to projects
+      project.members.add(user)
+
+      ref = db.reference(f"invitedNotifications/{user_id}")
+      notification = ref.child(valid_data['notification_id'])
+
+      member_ids = project.members.exclude(id=user_id)
+
+      for member in member_ids:
+          ref_member = db.reference(f"notifications/{str(member)}")
+          new_notification = {
+            "title": f"{project.name}",
+            "content" : f"{user.email} has joined {project.name}",
+            "is_read": False,
+            "sender_id": user_id,
+            "created_at": datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
+            "updated_at":datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
+        }
+          ref_member.push(new_notification)
+
+      #delete notification
+      notification.delete()
+
+      ref_owner = db.reference(f"notifications/{str(project.owner.id)}")
+      new_notification = {
+            "title": f"{project.name}",
+            "content" : f"{user.email} has accept your invitation",
+            "is_read": False,
+            "sender_id":user_id,
+            "created_at": datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
+            "updated_at":datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
+        }
+      ref_owner.push(new_notification)
+
+      return success_response(
+        message=f"User {user.email} has been successfully added to project {project.name}.",
+        status_code=status.HTTP_200_OK
+      )
+    except Exception as e:
+      return failure_response(
+            message="An unexpected error occurred",
+            data=str(e),
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+@api_view(['POST'])
+@auth_middleware
+def decline_invite(request):
+    try:
+        # Retrieve user ID from the authenticated request
+        user_id = request.user['id']
+        req_body = RequireBody(data=request.data)
+
+        # Validate request body
+        if not req_body.is_valid():
+            return failure_response(
+                message="Validation errors",
+                data=req_body.errors,
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Extract validated data
+        valid_data = req_body.validated_data
+
+        user = User.objects.get(id=user_id)
+
+        # Check if the project exists
+        project = Project.objects.filter(id=valid_data['project_id']).first()
+        if not project:
+            return failure_response(
+                message="Project not found",
+                status_code=status.HTTP_404_NOT_FOUND
+            )
+
+        # Check if the notification exists in Firebase
+        ref = db.reference(f"invitedNotifications/{user_id}")
+        notification = ref.child(valid_data['notification_id'])
+        if not notification.get():
+            return failure_response(
+                message="Notification not found",
+                status_code=status.HTTP_404_NOT_FOUND
+            )
+
+        # Delete the notification to decline the invite
+        notification.delete()
+
+        # Send notification to owner
+        ref_owner = db.reference(f"notifications/{str(project.owner.id)}")
+
+        new_notification = {
+            "title": f"{project.name}",
+            "content" : f"{user.email} has decline you invitation",
+            "is_read": False,
+            "sender_id":user_id,
+            "created_at": datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
+            "updated_at":datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
+        }
+
+        ref_owner.push(new_notification)
+
+        return success_response(
+            message=f"Invitation to join project {project.name} has been declined.",
+            status_code=status.HTTP_200_OK
+        )
+    except Exception as e:
+        # Handle unexpected errors and return a failure response
+        return failure_response(
             message="An unexpected error occurred",
             data=str(e),
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR

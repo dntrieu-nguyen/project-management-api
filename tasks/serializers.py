@@ -1,3 +1,4 @@
+import priority
 from rest_framework import serializers
 import datetime
 from app.models import Task, Project, User
@@ -30,7 +31,7 @@ class CreateTaskSerializer(serializers.Serializer):
         required=True,
     )
     project_id = serializers.UUIDField(required=True)
-    members = serializers.ListField(
+    assignees = serializers.ListField(
         child=serializers.UUIDField(),  # Đảm bảo mỗi phần tử trong mảng là UUID hợp lệ
         required=False,
     )
@@ -43,26 +44,9 @@ class CreateTaskSerializer(serializers.Serializer):
     end_date = serializers.DateTimeField(
         required=True,
     )
-
-    def validate_status(self, value):
-
-        if (value != 'pending' and value != 'completed'):
-            raise serializers.ValidationError(
-                "Status must be pending or completed")
-        return value
-
-    def validate_members(self, value):
-        unique_members = list(set(value))
-        return unique_members
-    def validate_date(self, value):
-        if value < datetime.datetime.now():
-            raise serializers.ValidationError("Date must be greater than current date")
-        return value
-    def validate_start_end_date(self, value):
-        if value['start_date'] > value['end_date']:
-            raise serializers.ValidationError("Start date must be less than end date")
-        return value
-
+    estimate_hour = serializers.FloatField()
+    actual_hour = serializers.FloatField()
+    priority = serializers.IntegerField()
 
 class UpdateTaskSerializer(serializers.Serializer):
     title = serializers.CharField(
@@ -80,8 +64,8 @@ class UpdateTaskSerializer(serializers.Serializer):
     )
     task_id = serializers.UUIDField(required=True)
     project_id = serializers.UUIDField(required=True)
-    members = serializers.ListField(
-        child=serializers.UUIDField(),
+    assignees = serializers.ListField(
+        child=serializers.CharField(),
         required=False,
     )
     status = serializers.CharField(
@@ -133,4 +117,5 @@ class SendNotificationSerializers(serializers.Serializer):
     project_id = serializers.CharField()
 
 class ResponseSerializers(serializers.Serializer):
-    invitation_id = serializers.CharField()
+    notification_id = serializers.CharField()
+    task_id = serializers.CharField()

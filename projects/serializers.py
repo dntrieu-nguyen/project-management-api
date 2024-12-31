@@ -17,6 +17,7 @@ class CreateProjectSerializers(serializers.Serializer):
     members = serializers.CharField(required=False)
     start_date = serializers.DateTimeField()
     end_date = serializers.DateTimeField()
+    status = serializers.CharField()
     def validate(self, data):
         start_date = data.get("start_date")
         end_date = data.get("end_date")
@@ -27,6 +28,10 @@ class CreateProjectSerializers(serializers.Serializer):
             })
 
         return data
+
+class RequireBody(serializers.Serializer):
+    notification_id = serializers.CharField()
+    project_id = serializers.CharField()
 
 class UpdateProjectSerializers(serializers.Serializer):
     name = serializers.CharField(

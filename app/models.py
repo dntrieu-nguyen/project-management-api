@@ -55,7 +55,9 @@ class Project(SoftDeleteMixin):
         ('in-progress', 'In Progress'),
         ('completed', 'Completed'),
         ('open', 'Open'),
-        ('close', 'Close')
+        ('close', 'Close'),
+        ('cancel', 'Cancel'),
+        
     ]
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255)
