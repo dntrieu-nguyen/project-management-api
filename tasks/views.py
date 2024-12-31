@@ -114,45 +114,79 @@ def get_tasks_by_project_id(request, *args, **kwargs):
 @api_view(['POST'])
 @auth_middleware
 def create_task(request, *args, **kwargs):
-    serializer = CreateTaskSerializer(data=request.data)
-    if not serializer.is_valid():
-        raise ValidationError(serializer.errors)
-
-    user_id = request.user['id']
-
-
-    project_id = serializer.validated_data.get('project_id')
-    title = serializer.validated_data.get('title')
-    description = serializer.validated_data.get('description')
-    due_date = serializer.validated_data.get('due_date')
-    member_ids = serializer.validated_data.get('members')
-    task_status = serializer.validated_data.get('status')
-
-    project = Project.objects.filter(id=project_id).first()
-    if project is None:
-        return failure_response(message="Project not found", status_code=status.HTTP_404_NOT_FOUND)
-
-    if project.members.filter(id=user_id).first() is None:
-        return failure_response(message="User not in project", status_code=status.HTTP_403_FORBIDDEN)
     try:
-        project = Project.objects.get(id=project_id)
-        task = Task.objects.create(title=title, description=description,
-                                   due_date=due_date, status=task_status, project_id=project_id)
+        req_body = CreateTaskSerializer(data=request.data)
+        if not req_body.is_valid():
+            return failure_response(
+                message="Validation Errors",
+                data= req_body.errors
+            )
 
-        if member_ids is not None and len(member_ids) > 0:
-            users_in_project = project.members.filter(id__in=member_ids)
-            if not users_in_project.exists():
-                return failure_response(message="No valid users found", status_code=status.HTTP_404_NOT_FOUND)
-            task.assignees.add(*users_in_project)
+        user_id = request.user['id']
+        valid_data = req_body.validated_data
 
-        task.save()
-        task_data = TaskSerializer(task).data
 
-        return success_response(data=task_data, status_code=status.HTTP_200_OK)
+        project_id = valid_data.get('project_id')
 
-    except Project.DoesNotExist:
-        return failure_response(message="Not found project", status_code=status.HTTP_404_NOT_FOUND)
+        project = Project.objects.filter(id=project_id).first()
 
+        user = User.objects.filter(id= user_id).first()
+
+        if project is None:
+            return failure_response(message="Project not found", status_code=status.HTTP_404_NOT_FOUND)
+       
+ 
+        assignee_ids = valid_data.get('assignees', [])
+
+        project_member_ids = set(project.members.values_list('id', flat=True))
+
+        invalid_assignees = [assignee_id for assignee_id in assignee_ids if assignee_id not in project_member_ids]
+
+        if invalid_assignees:
+            return failure_response(
+                message=f"These users are not in the project: {invalid_assignees}",
+                status_code=status.HTTP_403_FORBIDDEN,
+            )
+
+
+        new_task = Task.objects.create(
+            title = valid_data['title'],
+            description = valid_data['description'],
+            start_date = valid_data['start_date'],
+            end_date = valid_data['end_date'],
+            status = valid_data['status'],
+            priority = valid_data['priority'],
+            estimate_hour = valid_data['estimate_hour'],
+            actual_hour = valid_data['actual_hour']
+        )
+
+        project.tasks.add(new_task)
+
+        for mem in assignee_ids:
+            ref = db.reference(f'invitedNotifications/{mem}')
+            new_data = {
+                    "project": str(project.id),
+                    "task": str(new_task.id),
+                    "status": "pending",
+                    "from": user.email,
+                    "type":"invite",
+                    "context":"task",
+                    "message": f"You have a invitation to join task {new_task.title} from {user.email}",
+                    "created_at" : datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+                }
+            ref.push(new_data)
+        
+        return success_response(
+            message="Task created successfully",
+           
+        )
+
+    except Exception as e:
+      return failure_response(
+            message="An unexpected error occurred",
+            data=str(e),
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
 
 @swagger_auto_schema(
     method='PATCH',
@@ -305,6 +339,8 @@ def send_invite_join_task(request):
           "task": str(task.id),
           "project": str(validated_data['project_id']),
           "status": "pending",
+          "type":"invite",
+          "context" :"task",
           "from": user.email,
           "message": f"You have a invitation to join {task.title} from {user.email}",
           "created_at" : datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%fZ')
@@ -327,22 +363,51 @@ def accept_invitation(request):
       user_id = request.user['id']
       ref = db.reference(f"invitedNotifications/{user_id}")
 
-      req_body = ResponseSerializers(data= request.data)
+      req_body = ResponseSerializers(data=request.data)
+
       if not req_body.is_valid():
-          return failure_response(
-              message="Validation Errors",
-              data= req_body.errors
-          )
-      
+        return failure_response(
+            message="Validation erros",
+            data= req_body.errors
+        )
       valid_data = req_body.validated_data
       
-      invite_info = json.dumps(ref.get(f"invitedNotifications/{user_id}/{valid_data['invitation_id']}"))
-      print("check invite", invite_info)
-      if not invite_info:
+      task = Task.objects.filter(id=valid_data['task_id']).first()
+      user = User.objects.filter(id = user_id).first()
+
+      if not task:
           return failure_response(
-              message="Invite message not found"
+              message="Task not found",
+              status_code= status.HTTP_404_NOT_FOUND
           )
       
+      if task.assignees.filter(id = user_id).exists():
+          return failure_response(
+              message="User is already a member of this task"
+          )
+      task.assignees.add(user)
+
+      notification = ref.child(valid_data['notification_id'])
+      member_ids = task.assignees.exclude(id=user_id)
+
+      for member in member_ids:
+          ref_member = db.reference(f"notifications/{str(member)}")
+          new_notification = {
+            "title": f"{task.title}",
+            "content" : f"{user.email} has joined {task.title}",
+            "is_read": False,
+            "sender_id": user_id,
+            "created_at": datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
+            "updated_at":datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
+            }
+          ref_member.push(new_notification)
+
+      notification.delete()
+      return success_response(
+        message=f"User {user.email} has been successfully added to project {task.title}.",
+        status_code=status.HTTP_200_OK
+      )
+
     except Exception as e:
       return failure_response(
             message="An unexpected error occurred",
