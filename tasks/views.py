@@ -210,14 +210,8 @@ def update_task(request, *args, **kwargs):
     serializer = UpdateTaskSerializer(data=request.data)
     if not serializer.is_valid():
         raise ValidationError(serializer.errors)
+    
     user_id = request.user['id']
-
-    project = Project.objects.filter(id=project_id).first()
-    if project is None:
-        return failure_response(message="Project not found", status_code=status.HTTP_404_NOT_FOUND)
-
-    if project.members.filter(id=user_id).first() is None:
-        return failure_response(message="User not in project", status_code=status.HTTP_403_FORBIDDEN)
 
     task_id = serializer.validated_data.get('task_id')
     project_id = serializer.validated_data.get('project_id')
@@ -226,6 +220,19 @@ def update_task(request, *args, **kwargs):
     description = serializer.validated_data.get('description')
     due_date = serializer.validated_data.get('due_date')
     task_status = serializer.validated_data.get('status')
+    estimate_hour = serializer.validated_data.get('estimate_hour')
+    actual_hour = serializer.validated_data.get('actual_hour')
+    print(user_id)
+    print(project_id)
+
+    project = Project.objects.filter(id=project_id).first()
+    if project is None:
+        return failure_response(message="Project not found", status_code=status.HTTP_404_NOT_FOUND)
+
+    if project.members.filter(id=user_id).first() is None:
+        return failure_response(message="User not in project", status_code=status.HTTP_403_FORBIDDEN)
+
+  
 
     try:
         project = Project.objects.get(id=project_id)
@@ -248,6 +255,10 @@ def update_task(request, *args, **kwargs):
             task.status = task_status
         if due_date is not None:
             task.due_date = due_date
+        if estimate_hour is not None:
+            task.estimate_hour = estimate_hour
+        if actual_hour is not None:
+            task.actual_hour = actual_hour
 
         task.updated_at = timezone.now()
         task.save()
