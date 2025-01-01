@@ -67,14 +67,20 @@ class UpdateTaskSerializer(serializers.Serializer):
     assignees = serializers.ListField(
         child=serializers.CharField(),
         required=False,
-    )
+    )   
     status = serializers.CharField(
         required=False,
     )
-
+    estimate_hour = serializers.FloatField(
+        min_value=0
+    )
+    actual_hour = serializers.FloatField(
+        min_value=0
+    )
     def validate_status(self, value):
 
-        if (value != 'pending' and value != 'completed'):
+        valid_values = ["pending" , "in-process" , "completed" , "open" , "close" , "cancel"]
+        if (value not in valid_values ):
             raise serializers.ValidationError(
                 "Status must be pending or completed")
         return value
@@ -99,7 +105,7 @@ class TaskSerializer(ModelSerializer):
         model = Task
         fields = ['id', 'title', 'description', 'created_at',
                   'updated_at', 'is_deleted', 'status', 'priority', 
-                  'due_date', 'assignees', 'start_date', 'end_date']
+                  'due_date', 'assignees', 'start_date', 'end_date', 'estimate_hour','actual_hour']
         
         read_only_fields = ['id']
 
