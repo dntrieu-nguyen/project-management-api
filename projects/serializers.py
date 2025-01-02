@@ -18,6 +18,7 @@ class CreateProjectSerializers(serializers.Serializer):
     start_date = serializers.DateTimeField()
     end_date = serializers.DateTimeField()
     status = serializers.CharField()
+    id = serializers.CharField(required=False)
     def validate(self, data):
         start_date = data.get("start_date")
         end_date = data.get("end_date")
