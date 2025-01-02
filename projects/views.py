@@ -645,10 +645,9 @@ def decline_invite(request):
 def update_project(request):
     try:
         user_id = request.user['id']
-        
-       
-        req_body = CreateProjectSerializers(data=request.data)
 
+        # Deserialize and validate the input
+        req_body = CreateProjectSerializers(data=request.data)
         if not req_body.is_valid():
             return failure_response(
                 message="Validation errors",
@@ -658,57 +657,66 @@ def update_project(request):
 
         validated_data = req_body.validated_data
 
-        project = Project.objects.filter(
-            Q(owner=user_id) & Q(id=validated_data['project_id'])
-        ).first()
-
+        # Fetch the project
+        project = Project.objects.filter(id=validated_data['id']).first()
         if not project:
             return failure_response(
                 message="Project not found",
                 status_code=status.HTTP_404_NOT_FOUND
             )
-        if project.owner != user_id:
-            return failure_response(
-                message="You are not the owner of this project",
-                status_code=status.HTTP_403_FORBIDDEN
-            )
 
+        # Ensure the user is the owner
+        # if str(project.owner.id) != str(user_id):
+        #     return failure_response(
+        #         message="You are not the owner of this project",
+        #         status_code=status.HTTP_403_FORBIDDEN
+        #     )
+
+        # Update project details
         project.name = validated_data['name']
         project.description = validated_data.get('description', '')
         project.start_date = validated_data['start_date']
         project.end_date = validated_data['end_date']
         project.status = validated_data['status']
-        project.updated_at = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+        project.updated_at = datetime.utcnow()
 
-        # add members to projects
+        # Process members
         members_string = validated_data.get('members', '')
         member_ids = members_string.split(',') if members_string else []
-
-        if bool(members_string):
-            for user in member_ids:
-                # if user not in members project or user not is owner, send invitation
-                if user not in project.members or user != project.owner:
-                    new_data = {
-                        "project": str(project.id),
-                        "status": "pending",
-                        "from": project.owner.email,
-                        "type":"invite",
-                        "context":"project",
-                        "message": f"You have a invitation to join project {project.name} from {project.owner.email}",
-                        "created_at" : datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%fZ')
-                    }
-                    ref = db.reference(f"invitedNotifications/{user}")
-                    ref.push(new_data)
+        
+        if member_ids:
+            current_member_ids = set(str(member.id) for member in project.members.all())
+            new_member_ids = set(member_ids) - current_member_ids
             
+            for user_id in new_member_ids:
+                user = User.objects.filter(id=user_id).first()
+                if not user:
+                    continue  # Skip invalid user IDs
+                
+                # Create invitation notification
+                new_data = {
+                    "project": str(project.id),
+                    "status": "pending",
+                    "from": project.owner.email,
+                    "type": "invite",
+                    "context": "project",
+                    "message": f"You have an invitation to join project {project.name} from {project.owner.email}",
+                    "created_at": datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
+                }
+                ref = db.reference(f"invitedNotifications/{user_id}")
+                ref.push(new_data)
+
+        # Save project
         project.save()
 
+        # Return success response
         return success_response(
             message="Project updated successfully",
             data=ProjectSerializer(project).data
         )
     except Exception as e:
         return failure_response(
-                message="An unexpected error occurred",
-                data=str(e),
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+            message="An unexpected error occurred",
+            data=str(e),
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
