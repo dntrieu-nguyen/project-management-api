@@ -162,3 +162,31 @@ class DeleteProjectErrorResponseSerializer(serializers.Serializer):
         child=serializers.ListField(),
         default={"incomplete_tasks": [1, 2, 3]}
     )
+
+class UpdateProjectSerializer(serializers.Serializer):
+    project_id = serializers.CharField()
+    name = serializers.CharField(
+        required=True, 
+        max_length=50, 
+        min_length=3
+    )
+    description = serializers.CharField(
+        required=False, 
+        max_length=300,
+        allow_blank=True  
+    )
+    members = serializers.CharField(required=False)
+    start_date = serializers.DateTimeField()
+    end_date = serializers.DateTimeField()
+    status = serializers.CharField()
+
+    def validate(self, data):
+        start_date = data.get("start_date")
+        end_date = data.get("end_date")
+
+        if start_date and end_date and start_date > end_date:
+            raise serializers.ValidationError({
+                "end_date": "End date must be later than start date."
+            })
+
+        return data

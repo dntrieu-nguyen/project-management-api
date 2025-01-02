@@ -1,6 +1,8 @@
 import priority
 from rest_framework import serializers
 import datetime
+
+from sqlalchemy import null
 from app.models import Task, Project, User
 from rest_framework.serializers import ModelSerializer
 
@@ -68,16 +70,15 @@ class UpdateTaskSerializer(serializers.Serializer):
         child=serializers.CharField(),
         required=False,
     )
+    estimate_hour = serializers.FloatField()
+    actual_hour = serializers.FloatField(required=False)
+    priority = serializers.IntegerField()
+
     status = serializers.CharField(
         required=False,
     )
 
-    def validate_status(self, value):
-
-        if (value != 'pending' and value != 'completed'):
-            raise serializers.ValidationError(
-                "Status must be pending or completed")
-        return value
+   
 
     def validate_members(self, value):
         unique_members = list(set(value))
@@ -99,7 +100,7 @@ class TaskSerializer(ModelSerializer):
         model = Task
         fields = ['id', 'title', 'description', 'created_at',
                   'updated_at', 'is_deleted', 'status', 'priority', 
-                  'due_date', 'assignees', 'start_date', 'end_date']
+                  'due_date', 'assignees', 'start_date', 'end_date', 'estimate_hour', 'actual_hour']
         
         read_only_fields = ['id']
 
