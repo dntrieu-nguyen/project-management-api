@@ -29,6 +29,7 @@ urlpatterns = [
     path('api/notification/', include('notifications.urls')),
     path('api/comment/', include('comments.urls')),
     path('api/project-document/', include('project_document.urls')),
+    path("api/app/", include('app.urls')),
 
 
     # swagger

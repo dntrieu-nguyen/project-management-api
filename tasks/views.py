@@ -3,6 +3,7 @@ import json
 from rest_framework.decorators import api_view
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
+from utils.pagination import Pagination
 from utils.response import success_response, failure_response
 from middlewares import auth_middleware, admin_middleware
 from rest_framework import status
@@ -77,8 +78,7 @@ def get_tasks_by_project_id(request, *args, **kwargs):
         return failure_response(message="Not found project", status_code=status.HTTP_404_NOT_FOUND)
     tasks = project.tasks.filter(deleted_at__isnull=True, is_deleted=False)
 
-    paginator = PageNumberPagination()
-    paginator.page_size = per_page  # Số task mỗi trang (có thể lấy từ request)
+    paginator = Pagination()
     paginated_tasks = paginator.paginate_queryset(tasks, request)
 
     project_data = ProjectSerializer(project).data
@@ -86,12 +86,8 @@ def get_tasks_by_project_id(request, *args, **kwargs):
 
     project_data['tasks'] = tasks_data
     return success_response(
-        data={"project": project_data, "pagination": {
-            "current_page": paginator.page.number,
-            "total_pages": paginator.page.paginator.num_pages,
-            "total_tasks": paginator.page.paginator.count,
-        }},
-        status_code=status.HTTP_200_OK
+        data={"project": project_data},
+        paginator=paginator
     )
 
 
@@ -209,10 +205,12 @@ def create_task(request, *args, **kwargs):
 def update_task(request, *args, **kwargs):
     serializer = UpdateTaskSerializer(data=request.data)
     if not serializer.is_valid():
-        raise ValidationError(serializer.errors)
+        return failure_response(
+                    message="Validation errors",
+                    data=serializer.errors
+                )
     
     user_id = request.user['id']
-
     task_id = serializer.validated_data.get('task_id')
     project_id = serializer.validated_data.get('project_id')
     assignee_ids = serializer.validated_data.get('members')
@@ -222,31 +220,56 @@ def update_task(request, *args, **kwargs):
     task_status = serializer.validated_data.get('status')
     estimate_hour = serializer.validated_data.get('estimate_hour')
     actual_hour = serializer.validated_data.get('actual_hour')
-    print(user_id)
-    print(project_id)
+    priority = serializer.validated_data.get('priority')
 
-    project = Project.objects.filter(id=project_id).first()
-    if project is None:
-        return failure_response(message="Project not found", status_code=status.HTTP_404_NOT_FOUND)
-
-    if project.members.filter(id=user_id).first() is None:
-        return failure_response(message="User not in project", status_code=status.HTTP_403_FORBIDDEN)
-
-  
+    user_id = request.user['id']
+    user = User.objects.get(id=user_id)
 
     try:
+        # Fetch the project and task at the same time
         project = Project.objects.get(id=project_id)
         task = Task.objects.get(id=task_id)
+
+        # Check if the user is a member of the project
+       
+        # Update assignees if provided
         if assignee_ids is not None:
             if len(assignee_ids) == 0:
                 task.assignees.clear()
-            else:
-                users_in_project = project.members.filter(id__in=assignee_ids)
-                if not users_in_project.exists():
-                    return failure_response(message="No valid users found", status_code=status.HTTP_404_NOT_FOUND)
-                task.assignees.clear()
-                task.assignees.add(*users_in_project)
+            else:      
+                for mem in assignee_ids:
+                    ref = db.reference(f'invitedNotifications/{mem}')
+                    # check if member is already in the task
+                    if task.assignees.filter(id=mem).exists():
+                    # Create a new notification only for unassigned users
+                        new_data = {
+                            "project": str(project.id),
+                            "task": str(task.id),
+                            "status": "pending",
+                            "from": user.email,
+                            "type": "invite",
+                            "context": "task",
+                            "message": f"You have an invitation to join task {task.title} from {user.email}",
+                            "created_at": datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+                        }
+                        ref.push(new_data)
 
+                    if mem == user_id:
+                        ref = db.reference(f'notifications/{mem}')
+                        task.assignees.add(user)
+
+                        new_notification = {
+                            "title": f"{task.title}",
+                            "content": f"you has joined {task.title}",
+                            "is_read": False,
+                            "sender_id": user_id,
+                            "created_at": datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
+                            "updated_at": datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
+                        }
+
+                        ref.push(new_notification)
+                
+        # Update task fields if provided
         if title is not None:
             task.title = title
         if description is not None:
@@ -259,14 +282,17 @@ def update_task(request, *args, **kwargs):
             task.estimate_hour = estimate_hour
         if actual_hour is not None:
             task.actual_hour = actual_hour
-
+        if priority is not None:
+            task.priority = priority
         task.updated_at = timezone.now()
         task.save()
+
         return success_response(status_code=status.HTTP_200_OK, data=TaskSerializer(task).data)
+
     except Task.DoesNotExist:
-        return failure_response(message="Not found task", status_code=status.HTTP_404_NOT_FOUND)
+        return failure_response(message="Task not found", status_code=status.HTTP_404_NOT_FOUND)
     except Project.DoesNotExist:
-        return failure_response(message="Not found project", status_code=status.HTTP_404_NOT_FOUND)
+        return failure_response(message="Project not found", status_code=status.HTTP_404_NOT_FOUND)
 
 
 @swagger_auto_schema(

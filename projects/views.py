@@ -32,7 +32,7 @@ def create_project(request):
         serializer = CreateProjectSerializers(data=request.data)
         
 
-
+    
         # Check validate
         if not serializer.is_valid():
             return failure_response(
@@ -639,3 +639,76 @@ def decline_invite(request):
             data=str(e),
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+
+@api_view(['PATCH'])
+@auth_middleware
+def update_project(request):
+    try:
+        user_id = request.user['id']
+        
+       
+        req_body = CreateProjectSerializers(data=request.data)
+
+        if not req_body.is_valid():
+            return failure_response(
+                message="Validation errors",
+                data=req_body.errors,
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
+
+        validated_data = req_body.validated_data
+
+        project = Project.objects.filter(
+            Q(owner=user_id) & Q(id=validated_data['project_id'])
+        ).first()
+
+        if not project:
+            return failure_response(
+                message="Project not found",
+                status_code=status.HTTP_404_NOT_FOUND
+            )
+        if project.owner != user_id:
+            return failure_response(
+                message="You are not the owner of this project",
+                status_code=status.HTTP_403_FORBIDDEN
+            )
+
+        project.name = validated_data['name']
+        project.description = validated_data.get('description', '')
+        project.start_date = validated_data['start_date']
+        project.end_date = validated_data['end_date']
+        project.status = validated_data['status']
+        project.updated_at = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+
+        # add members to projects
+        members_string = validated_data.get('members', '')
+        member_ids = members_string.split(',') if members_string else []
+
+        if bool(members_string):
+            for user in member_ids:
+                # if user not in members project or user not is owner, send invitation
+                if user not in project.members or user != project.owner:
+                    new_data = {
+                        "project": str(project.id),
+                        "status": "pending",
+                        "from": project.owner.email,
+                        "type":"invite",
+                        "context":"project",
+                        "message": f"You have a invitation to join project {project.name} from {project.owner.email}",
+                        "created_at" : datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+                    }
+                    ref = db.reference(f"invitedNotifications/{user}")
+                    ref.push(new_data)
+            
+        project.save()
+
+        return success_response(
+            message="Project updated successfully",
+            data=ProjectSerializer(project).data
+        )
+    except Exception as e:
+        return failure_response(
+                message="An unexpected error occurred",
+                data=str(e),
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
