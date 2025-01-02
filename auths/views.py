@@ -242,7 +242,7 @@ def change_password(request, *args, **kwargs):
     user_data = UserSerializers(user).data
     user_data['password'] = new_password
 
-    return success_response(status=status.HTTP_200_OK, data=user_data)
+    return success_response(status_code=status.HTTP_200_OK, data=user_data)
 
 
 @swagger_auto_schema(
