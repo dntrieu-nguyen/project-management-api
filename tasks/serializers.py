@@ -80,6 +80,7 @@ class UpdateTaskSerializer(serializers.Serializer):
 
    
 
+
     def validate_members(self, value):
         unique_members = list(set(value))
         return unique_members

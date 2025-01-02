@@ -206,10 +206,11 @@ def update_task(request, *args, **kwargs):
     serializer = UpdateTaskSerializer(data=request.data)
     if not serializer.is_valid():
         return failure_response(
-            message="Validation errors",
-            data=serializer.errors
-        )
-
+                    message="Validation errors",
+                    data=serializer.errors
+                )
+    
+    user_id = request.user['id']
     task_id = serializer.validated_data.get('task_id')
     project_id = serializer.validated_data.get('project_id')
     assignee_ids = serializer.validated_data.get('members')
@@ -283,8 +284,6 @@ def update_task(request, *args, **kwargs):
             task.actual_hour = actual_hour
         if priority is not None:
             task.priority = priority
-
-        # Save the task
         task.updated_at = timezone.now()
         task.save()
 
